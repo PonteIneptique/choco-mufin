@@ -41,3 +41,35 @@ As table:
 | B    | LATIN CAPITAL LETTER B           | B          | 0042      | B          |
 | C    | LATIN CAPITAL LETTER C           | C          | 0043      | C          |
 | D    | LATIN CAPITAL LETTER D           | D          | 0044      | D          |
+
+
+## Github Action Template 
+
+Just replace the path to `table.csv` and the file that needs to be tested, then save this file on your repository in
+`.github/workflows/chocomufin.yml`:
+
+```yaml
+# This workflow will install Python dependencies, run tests and lint with a single version of Python
+# For more information see: https://help.github.com/actions/language-and-framework-guides/using-python-with-github-actions
+
+name: ChocoMufin
+
+on: [push, pull_request]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: Set up Python 3.8
+      uses: actions/setup-python@v2
+      with:
+        python-version: 3.8
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install chocomufin
+    - name: Run ChocoMufin
+      run: |
+        chocomufin control table.csv **/*.xml
+```
