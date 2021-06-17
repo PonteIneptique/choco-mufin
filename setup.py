@@ -20,7 +20,7 @@ DESCRIPTION = '[CHaracter Ocr COordination for MUFI iN texts] ' \
 URL = 'https://github.com/ponteineptique/choco-mufin'
 AUTHOR = 'Thibault Clerice'
 REQUIRES_PYTHON = '>=3.6.0'
-VERSION = "0.0.2"
+VERSION = "0.0.3"
 
 # What packages are required for this module to be executed?
 
@@ -103,9 +103,8 @@ setup(
     author=AUTHOR,
     python_requires=REQUIRES_PYTHON,
     url=URL,
-    packages=find_packages(exclude=('tests',)),
     # If your package is a single module, use this instead of 'packages':
-    # py_modules=['mypackage'],
+    py_modules=['chocomufin'],
 
     entry_points={
         'console_scripts': ['chocomufin=chocomufin:main_wrap'],

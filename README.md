@@ -8,7 +8,7 @@ such as abbreviation, hence MUFI.
 
 ## Install
 
-`pip install choco-mufin`
+`pip install chocomufin`
 
 ## Commands
 
