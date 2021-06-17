@@ -3,6 +3,7 @@ import logging
 import csv
 import sys
 import re
+import os
 from typing import Set, Pattern, Iterable, Union, Dict, Any
 from collections import defaultdict
 
@@ -11,7 +12,6 @@ import tabulate
 import lxml.etree as ET
 import click
 import tqdm
-import os
 
 logging.getLogger().setLevel(logging.INFO)
 
