@@ -129,10 +129,12 @@ def control(ctx: click.Context, table: str, files: Iterable[str], ignore: str):
         )
         click.echo("----\nREPORT\n----")
         print(tabulate.tabulate(table, headers="firstrow", tablefmt="fancy_grid"))
-        sys.exit(0)
-    else:
-        print("No new characters found")
         sys.exit(1)
+    else:
+        click.echo(
+            click.style("No new characters found", fg="green")
+        )
+        sys.exit(0)
 
 
 @main.command("generate")
