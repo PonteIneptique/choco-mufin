@@ -199,7 +199,7 @@ def convert(ctx: click.Context, table: str, files: Iterable[str], suffix: str = 
 
         xml = convert_file(file, control_table, normalization=ctx.obj["unorm"])
         with open(file.replace(".xml", suffix) if ".xml" in file else file+suffix, "w") as f:
-            f.write(ET.tostring(xml, encoding=str, xml_declaration=True, pretty_print=True))
+            f.write(ET.tostring(xml, encoding=str, xml_declaration=False, pretty_print=True))
 
 
 def main_wrap():
