@@ -104,7 +104,7 @@ setup(
     python_requires=REQUIRES_PYTHON,
     url=URL,
     # If your package is a single module, use this instead of 'packages':
-    py_modules=['chocomufin'],
+    packages=["chocomufin"],
 
     entry_points={
         'console_scripts': ['chocomufin=chocomufin:main_wrap'],
