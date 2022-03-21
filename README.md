@@ -1,3 +1,5 @@
+<img src="./img/chocomufin.png" width="250" align="right">
+
 # Choco-Mufin
 
 *\[CHaracter Ocr COordination for MUFI iN texts\]*
@@ -73,3 +75,8 @@ jobs:
       run: |
         chocomufin control table.csv **/*.xml
 ```
+
+
+---
+
+Logo by [Alix Chagué](https://alix-tz.github.io).
