@@ -8,8 +8,8 @@ import lxml.etree as ET
 import click
 import tqdm
 
-from chocomufin.funcs import Translator, check_file, get_hex, convert_file
-from .parsers import Parser, Alto
+from chocomufin.funcs import Translator, check_file, get_hex, convert_file, update_table, get_character_name
+from chocomufin.parsers import Parser, Alto
 logging.getLogger().setLevel(logging.INFO)
 
 
@@ -69,16 +69,17 @@ def control(ctx: click.Context, table: str, files: Iterable[str], ignore: str, p
             missing_chars = missing_chars.union(new_chars)
 
     # Generate the controlling table
-    table = [["Character", "Hex-representation", "Files"]]
+    table = [["Character", "Hex-representation", "Name", "Files"]]
     for char in errors:
         table.append([
             char.strip(),
             get_hex(char),
+            get_character_name(char),
             errors[char][0]
         ])
         if len(errors[char]) > 1:
             for file in errors[char][1:]:
-                table.append(["", "", file])
+                table.append(["", "", "", file])
 
     # Prints table and exits
     if len(table) > 1:
@@ -135,12 +136,23 @@ def convert(
                                    " --mode=cleanup will drop values which have not been found in the [FILES].",
               show_default=True)
 @click.option("--parser", type=click.Choice(["alto"]), default="alto", help="XML format of the file", show_default=True)
+@click.option("--dest", type=click.Path(file_okay=True, dir_okay=False), default=None,
+              help="If set up, instead of writing to file in update, will write in dest")
 @click.pass_context
-def generate(ctx: click.Context, table: str, files: Iterable[str], mode: str = "keep", parser: str = "alto"):
+def generate(ctx: click.Context, table: str, files: Iterable[str], mode: str = "keep", parser: str = "alto",
+             dest: str = None):
     """ Generate a [TABLE] of accepted character for transcriptions based on [FILES]
     """
     parser = _get_parser(parser)
-    # ToDo: Update
+    update_table(
+        files=files,
+        table_file=table,
+        echo=True,
+        dest=dest,
+        mode=mode,
+        parser=parser,
+        normalization_method=_get_unorm(ctx)
+    )
 
 
 def main_wrap():

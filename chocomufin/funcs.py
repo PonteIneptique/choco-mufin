@@ -4,8 +4,9 @@ import os.path
 import re
 import json
 import unicodedata
-from typing import Set, Dict, ClassVar, Optional, Iterable, List
+from typing import Set, Dict, ClassVar, Optional, Iterable, List, Tuple, Union
 
+import tabulate
 import tqdm
 import click
 import mufidecode
@@ -13,8 +14,8 @@ import mufidecode
 from chocomufin.parsers import Parser, Alto
 
 
-with open(os.path.join(os.path.dirname(__file__), "mufi.json")) as f:
-    MUFI = json.load(f)
+with open(os.path.join(os.path.dirname(__file__), "mufi.json")) as mufi_file_io:
+    MUFI = json.load(mufi_file_io)
 
 
 def normalize(string, method: Optional[str] = None):
@@ -40,23 +41,38 @@ def get_hex(char: str) -> str:
 
 
 class Translator:
-    def __init__(self, control_table: Dict[str, str], known_chars: Optional[Set[str]] = None):
+    def __init__(self, control_table: Dict[str, str], known_chars: Optional[Union[Set[str], List[str]]] = None):
         """ Apply a normalization dict to a string
 
         :param control_table: Dictionary of string-to-string replacement
         """
-        self._control_table = control_table
+        self._control_table: Dict[str, str] = control_table
         self._control_table_re = re.compile("(" + "|".join([Translator._escape(key) for key in control_table]) + ")")
 
-        if known_chars:
-            self._known_chars = known_chars.union(set(self._control_table.keys()))
-        else:
+        self._known_chars: Set[str] = set()
+        self._known_chars_lists: List[str] = []
+
+        if not known_chars:
             self._known_chars = set(self._control_table.keys())
+            self._known_chars_lists = list(self._control_table.keys())
+        elif isinstance(known_chars, list):
+            self._known_chars_lists = known_chars
+            self._known_chars = set(known_chars).union(set(self._control_table.keys()))
+        else:
+            self._known_chars = known_chars.union(set(self._control_table.keys()))
+
+            def get_order(char):
+                chars = list(self._control_table.keys())
+                if char in chars:
+                    return chars.index(char)
+                return len(chars)+1
+
+            self._known_chars_lists = sorted(list(self._known_chars), key=get_order)
 
         self._known_chars_re = re.compile(
             "(" + "|".join([
                 Translator._escape(key)
-                for key in self._known_chars.union({r"#r#\s"})
+                for key in self._known_chars_lists + [r"#r#\s"]
             ]) + ")"
         )
 
@@ -156,7 +172,69 @@ class Translator:
         >>> (Translator({'#r#[a-z]': 'e'}, {"1"})).get_unknown_chars("abcdef1", normalization_method="NFD") == set()
         True
         """
-        return set(self._known_chars_re.sub("", normalize(line, method=normalization_method)))
+        return set(
+            self._known_chars_re.sub(
+                "",
+                normalize(line, method=normalization_method)
+            )
+        )
+
+    def get_known_chars(
+            self,
+            line: str,
+            normalization_method: Optional[str] = None,
+            ignore: Set[str] = None) -> Set[str]:
+        """ Checks a line to see all characters or input that are known
+
+        ToDo: Find a more efficient way to do this ?
+
+        Simple cases
+        >>> (Translator({"é": "ẽ"})).get_known_chars("ábé") == {"é"}
+        True
+
+        Input dictionary is not normalized a Translator initialization but it is at parsing
+           resulting in 0 known chars
+        >>> (Translator({"é": "ẽ"})).get_known_chars("ábé", normalization_method="NFD") == set()
+        True
+        >>> (Translator({'́': '̃'})).get_known_chars("ábé", normalization_method="NFD") == {'́'}
+        True
+        >>> (Translator({'é': 'ẽ'})).get_known_chars("ábé", normalization_method="NFD") == {'é'}
+        True
+
+        "Advanced" cases
+        >>> (Translator({'bé': 'dé', 'é': 'ẽ'})).get_known_chars("ábé", normalization_method="NFD") == {'bé', 'é'}
+        True
+        >>> (Translator({'f': 'f'}, {"a", "b", '́'})).get_known_chars(
+        ...      "ábé", normalization_method="NFD") == {"a", "b", '́'}
+        True
+        >>> (Translator({'e': 'e'}, {"a", "b", '́'})).get_known_chars(
+        ...      "ábé", normalization_method="NFD") == {"a", "b", "e", '́'}
+        True
+        >>> (Translator({'e': 'e'}, {"#r#[a-z]"})).get_known_chars(
+        ...      "abcdef", normalization_method="NFD") == {"#r#[a-z]", "e"}
+        True
+        >>> (Translator({'#r#[a-z]': 'e'}, {"1"})).get_known_chars(
+        ...     "abcdef1", normalization_method="NFD") == {"#r#[a-z]", "1"}
+        True
+        >>> (Translator({'#r#[a-z]': 'e'}, {"1"})).get_known_chars(
+        ...     "abcdef1", normalization_method="NFD", ignore={"#r#[a-z]"}) == {"1"}
+        True
+        """
+        if not ignore:
+            ignore = set()
+        line = normalize(line, method=normalization_method)
+        transform = set([
+            matcher
+            for matcher in self.control_table.keys()
+            if matcher not in ignore and re.search(self._escape(matcher), line)
+        ])
+        ignore = ignore.union(transform)
+        known_chars = set([
+            matcher
+            for matcher in self.known_chars
+            if matcher not in ignore and re.search(self._escape(matcher), line)
+        ])
+        return transform.union(known_chars)
 
     @classmethod
     def parse(
@@ -180,7 +258,7 @@ class Translator:
         True
         """
         chars = {}
-        known_chars = set()
+        known_chars = []
 
         for line in cls.get_csv(table_file):
             line = {
@@ -190,7 +268,7 @@ class Translator:
             # Append to the dict only differences between char and normalized
             if line["char"] != line["replacement"]:
                 chars[line["char"]] = line["replacement"]
-            known_chars.add(line["char"])
+            known_chars.append(line["char"])
         return Translator(chars, known_chars=known_chars)
 
     @staticmethod
@@ -291,13 +369,41 @@ def get_character_name(character: str) -> str:
     raise CharacterUnknown
 
 
-def generate(
+def get_files_unknown_and_known(
+    instance: Parser,
+    translator: Translator,
+    normalization_method: Optional[str] = None
+) -> Tuple[Set[str], Set[str]]:
+    """ Retrieves unknown and known characters from an instance
+
+    """
+    unknown = set()
+    used = set()
+
+    for line in instance.get_lines():
+        unknown = unknown.union(
+            translator.get_unknown_chars(
+                str(line),
+                normalization_method=normalization_method
+            )
+        )
+        used = used.union(
+            translator.get_known_chars(
+                str(line),
+                normalization_method=normalization_method
+            )
+        )
+    return unknown, used
+
+
+def update_table(
     files: Iterable[str],
     table_file: Optional[str] = None,
     mode: str = "add",
     parser: str = "alto",
-    echo: bool = True,
-    normalization_method: str = "NFC"
+    echo: bool = False,
+    normalization_method: Optional[str] = None,
+    dest: Optional[str] = None
 ):
     prior: Dict[str, Dict[str, str]] = {}
     translator = Translator({})
@@ -308,8 +414,8 @@ def generate(
         prior = {row["char"]: row for row in (Translator.get_csv(table_file))}
         translator = Translator.parse(table_file, normalization_method=normalization_method)
         if echo:
-            click.echo(click.style(f"Loading previous table at path `{prior}`", fg="yellow"))
-            click.echo(click.style(f"`{len(translator)} characters found in the original table`", fg="green"))
+            click.echo(click.style(f"Loading previous table at path `{table_file}`", fg="yellow"))
+            click.echo(click.style(f"{len(translator)} characters found in the original table", fg="green"))
 
     # Mainly decorative stuff
     decoration = tqdm.tqdm
@@ -324,14 +430,12 @@ def generate(
             click.echo(click.style(message, fg="red"))
 
     unknown = set()
+    used = set()
     for file in decoration(files):
         instance = parser(file)
-        for line in instance.get_lines():
-            unknown = unknown.union(
-                translator.get_unknown_chars(
-                    str(line),
-                    normalization_method=normalization_method)
-            )
+        inst_unknown, used_unknown = get_files_unknown_and_known(instance, translator, normalization_method)
+        unknown = unknown.union(unknown)
+        used = used.union(used)
 
     # Content is a list of
     #    with at least char, mufidecode, codepoint and name as keys
@@ -373,11 +477,23 @@ def generate(
             for character in prior:
                 content.append(prior[character])
             if echo:
-                click.echo(click.style(f"Characters kept with keep mode: `{', '.join(prior.keys())}`", fg="yellow"))
+                click.echo(click.style(f"Characters kept with keep mode but not necessarily found"
+                                       f": `{', '.join(prior.keys())}`", fg="yellow"))
         elif mode == "cleanup":
-            pass
+            removed = []
+            for character in prior:
+                if character in used:
+                    content.append(prior[character])
+                else:
+                    removed.append(prior[character])
             if echo:
-                click.echo(click.style(f"Characters dropped with clean-up mode: `{', '.join(prior.keys())}`", fg="yellow"))
+                if prior:
+                    click.echo(click.style("Characters kept with keep mode: {}".format(
+                        ', '.join([f"`{k}`" for k in sorted(list(used))])
+                    ), fg="yellow"))
+                if removed:
+                    click.echo(click.style("Replacement removed because they were not used", fg="red"))
+                    click.echo(tabulate.tabulate(removed, showindex=True, headers="keys", tablefmt="pipe"))
 
     base_field_names = ["char", "name", "replacement", "codepoint", "mufidecode"]
     previous_field_names = set([
@@ -385,7 +501,10 @@ def generate(
         for row in content
         for key in row.keys()
     ]).difference(set(base_field_names))
-    with open(table_file, "w") as out_file:
+    out_file = table_file
+    if dest:
+        out_file = dest
+    with open(out_file, "w") as out_file:
         w = csv.DictWriter(
             out_file,
             fieldnames=["char", "name", "replacement", "codepoint", "mufidecode"]+sorted(list(previous_field_names))
