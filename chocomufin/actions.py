@@ -15,7 +15,7 @@ from .funcs import get_hex
 TableType = Dict[str, Dict[str, str]]
 
 
-def read_table(file_or_content: str, is_filepath: bool = True, unicode_normalization: str = "NFC") -> TableType:
+def parse_table(file_or_content: str, is_filepath: bool = True, unicode_normalization: str = "NFC") -> TableType:
     table = file_or_content
     if not is_filepath:
         table = io.FileIO(file_or_content)
@@ -102,8 +102,8 @@ def generate(
                 content.append(prior[character])
             #click.echo(click.style(f"Characters kept with keep mode: `{', '.join(prior.keys())}`", fg="yellow"))
         elif mode == "cleanup":
+            pass
             #click.echo(click.style(f"Characters dropped with clean-up mode: `{', '.join(prior.keys())}`", fg="yellow"))
-
 
     with open(table, "w") as f:
         w = csv.DictWriter(f, fieldnames=["char", "name", "normalized", "codepoint", "mufidecode"])
