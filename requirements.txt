@@ -1,4 +1,4 @@
-click==8.0.1
+click==8.1.2
 lxml==4.6.3
 mufidecode==0.1.0
 Unidecode==1.2.0

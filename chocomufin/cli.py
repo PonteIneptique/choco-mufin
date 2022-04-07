@@ -37,7 +37,7 @@ def main(ctx: click.Context, debug: bool = False, norm: str = "NFC"):
         logging.getLogger().setLevel(logging.INFO)
     else:
         logging.getLogger().setLevel(logging.WARNING)
-    ctx.obj["unorm"] = norm
+    ctx.obj = {"unorm": norm}
 
 
 @main.command("control")
