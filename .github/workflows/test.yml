@@ -20,4 +20,4 @@ jobs:
         python setup.py develop
         pip install coverage nose
     - name: Test with nose
-      run: "nosetests --with-doctest -w tests --with-coverage chocomufin --verbose --cover-package=chocomufin"
+      run: "nosetests --with-doctest --with-coverage --cover-package=chocomufin --verbose --verbose ."

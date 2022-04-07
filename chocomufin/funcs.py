@@ -51,6 +51,10 @@ class Translator:
         :param control_table: Dictionary of string-to-string replacement
         """
         self._control_table: Dict[str, str] = control_table
+        self._replace_table: Dict[str, str] = {
+            self._replace_regexp(match): repl
+            for match, repl in control_table.items()
+        }
         self._control_table_re = re.compile("(" + "|".join([Translator._escape(key) for key in control_table]) + ")")
 
         self._known_chars: Set[str] = set()
@@ -133,7 +137,7 @@ class Translator:
         return self._known_chars
 
     def _sub(self, group: re.Match) -> str:
-        return self._control_table[group.group(0)]
+        return self._replace_table[group.group(0)]
 
     def translate(
             self,
@@ -270,16 +274,16 @@ class Translator:
     ) -> "Translator":
         """ Parse a character translation table
 
-        >>> Translator.parse("../tests/test_controltable/simple.csv") == Translator({}, set("012"))
+        >>> Translator.parse("tests/test_controltable/simple.csv") == Translator({}, set("012"))
         True
         >>> Translator.parse(
-        ... "../tests/test_controltable/simple.csv", normalization_method="NFD") == Translator({}, set("012"))
+        ... "tests/test_controltable/simple.csv", normalization_method="NFD") == Translator({}, set("012"))
         True
         >>> Translator.parse(
-        ... "../tests/test_controltable/nfd.csv", normalization_method="NFD").control_table
+        ... "tests/test_controltable/nfd.csv", normalization_method="NFD").control_table
         {'᷒᷒': 'ꝰ', 'ẻ': 'e̾'}
         >>> Translator.parse(
-        ... "../tests/test_controltable/nfd.csv", normalization_method="NFD") == Translator(
+        ... "tests/test_controltable/nfd.csv", normalization_method="NFD") == Translator(
         ... {'᷒᷒': 'ꝰ', 'ẻ': 'e̾'}, {'᷒᷒', 'ꝯ', 'ẻ', 'ꝰ'})
         True
         """
@@ -306,6 +310,25 @@ class Translator:
         with open(table_file) as f:
             yield from csv.DictReader(f)
 
+    @staticmethod
+    def _replace_regexp(string: str) -> str:
+        """ Replace regexp for the group finder
+
+        >>> Translator._replace_regexp("#r#l'")
+        "l'"
+        >>> Translator._replace_regexp("#r#\u0035")
+        '5'
+        >>> Translator._replace_regexp("ab")
+        'ab'
+        """
+        if string.startswith("#r#"):
+            if len(string) > 3:
+                string = string[3:]
+                if string.startswith("\\u"):
+                    return str(chr(int(string.replace("\\u", ""), 16)))
+                return string
+            return ""
+        return string
 
 def check_file(
     file: str,
@@ -320,9 +343,9 @@ def check_file(
     :param normalization_method: Method to use on the file content for matching
     :param parser: System to use to parse the XML
 
-    >>> check_file("../tests/test_data/alto1.xml", Translator({})) == {'₰', '⸗'}
+    >>> check_file("tests/test_data/alto1.xml", Translator({})) == {'₰', '⸗'}
     True
-    >>> check_file("../tests/test_data/alto1.xml", Translator({'₰': ""})) == {'⸗'}
+    >>> check_file("tests/test_data/alto1.xml", Translator({'₰': ""})) == {'⸗'}
     True
     """
     unmatched_chars = set()
@@ -362,7 +385,7 @@ def convert_file(
     :param parser: System to use to parse the XML
 
     >>> translator = Translator({"⸗": "="})
-    >>> converted = convert_file("../tests/test_data/alto1.xml", translator, "NFD")
+    >>> converted = convert_file("tests/test_data/alto1.xml", translator, "NFD")
     >>> _test_helper(converted, 1) == "₰"
     True
     >>> _test_helper(converted, 0) == "="
