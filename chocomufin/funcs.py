@@ -275,7 +275,6 @@ class Translator:
     def get_csv(table_file: str):
         """ Get a list of row as dict
 
-        >>> Translator.get_csv()
         """
         with open(table_file) as f:
             yield from csv.DictReader(f)
