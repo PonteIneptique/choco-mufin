@@ -22,7 +22,7 @@ Conversion will automatically add a suffix which you can define with `--suffix`.
 
 
 ```csv
-char,name,normalized,codepoint,mufidecode
+char,name,replacement,codepoint,mufidecode
 ī,LATIN SMALL LETTER I WITH MACRON,ĩ,012B,i
 ı,LATIN SMALL LETTER DOTLESS I,i,0131,i
 ﬀ,LATIN SMALL LIGATURE FF,ff,FB00,ff
@@ -34,15 +34,15 @@ D,LATIN CAPITAL LETTER D,D,0044,D
 
 As table:
 
-| char | name                             | normalized | codepoint | mufidecode |
-|------|----------------------------------|------------|-----------|------------|
-| ī    | LATIN SMALL LETTER I WITH MACRON | ĩ          | 012B      | i          |
-| ı    | LATIN SMALL LETTER DOTLESS I     | i          | 0131      | i          |
-| ﬀ    | LATIN SMALL LIGATURE FF          | ff         | FB00      | ff         |
-| A    | LATIN CAPITAL LETTER A           | A          | 0041      | A          |
-| B    | LATIN CAPITAL LETTER B           | B          | 0042      | B          |
-| C    | LATIN CAPITAL LETTER C           | C          | 0043      | C          |
-| D    | LATIN CAPITAL LETTER D           | D          | 0044      | D          |
+| char | name                             | replacement | codepoint | mufidecode |
+|------|----------------------------------|-------------|-----------|------------|
+| ī    | LATIN SMALL LETTER I WITH MACRON | ĩ           | 012B      | i          |
+| ı    | LATIN SMALL LETTER DOTLESS I     | i           | 0131      | i          |
+| ﬀ    | LATIN SMALL LIGATURE FF          | ff          | FB00      | ff         |
+| A    | LATIN CAPITAL LETTER A           | A           | 0041      | A          |
+| B    | LATIN CAPITAL LETTER B           | B           | 0042      | B          |
+| C    | LATIN CAPITAL LETTER C           | C           | 0043      | C          |
+| D    | LATIN CAPITAL LETTER D           | D           | 0044      | D          |
 
 
 ## Github Action Template 
