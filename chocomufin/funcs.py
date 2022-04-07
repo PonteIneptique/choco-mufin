@@ -2,12 +2,9 @@ import csv
 import logging
 import re
 import unicodedata
-from typing import Pattern, Union, Set, Dict, ClassVar, Optional
+from typing import Set, Dict, ClassVar, Optional
 
 from chocomufin.parsers import Parser, Alto
-
-
-IGNORE = re.compile(r"[\s]+")
 
 
 def normalize(string, method: Optional[str] = None):
@@ -21,12 +18,6 @@ def normalize(string, method: Optional[str] = None):
     if method:
         return unicodedata.normalize(method, string)
     return string
-
-
-def ignore(line: str, regex: Pattern = IGNORE) -> str:
-    """ Replaces characters that needs to be ignored
-    """
-    return regex.sub("", line)
 
 
 def get_hex(char: str) -> str:
@@ -149,51 +140,53 @@ class Translator:
         """
         return set(self._known_chars_re.sub("", normalize(line, method=normalization_method)))
 
-
-def parse_table(
+    @classmethod
+    def parse(
+        cls,
         table_file: str,
         normalization_method: Optional[str] = None
-) -> Translator:
-    """ Parse a character translation table
+    ) -> "Translator":
+        """ Parse a character translation table
 
-    >>> parse_table("../tests/test_controltable/simple.csv") == Translator({}, set("012"))
-    True
-    >>> parse_table("../tests/test_controltable/simple.csv", normalization_method="NFD") == Translator({}, set("012"))
-    True
-    >>> parse_table(
-    ... "../tests/test_controltable/nfd.csv", normalization_method="NFD").control_table
-    {'᷒᷒': 'ꝰ', 'ẻ': 'e̾'}
-    >>> parse_table(
-    ... "../tests/test_controltable/nfd.csv", normalization_method="NFD") == Translator(
-    ... {'᷒᷒': 'ꝰ', 'ẻ': 'e̾'}, {'᷒᷒', 'ꝯ', 'ẻ', 'ꝰ'})
-    True
-    """
-    chars = {}
-    known_chars = set()
-    with open(table_file) as f:
-        r = csv.DictReader(f)
-        for line in r:
-            line = {
-                normalize(key, normalization_method): normalize(val, normalization_method)
-                for key, val in line.items()
-            }
-            # Append to the dict only differences between char and normalized
-            if line["char"] != line["normalized"]:
-                chars[line["char"]] = line["normalized"]
-            known_chars.add(line["char"])
-    return Translator(chars, known_chars=known_chars)
+        >>> Translator.parse("../tests/test_controltable/simple.csv") == Translator({}, set("012"))
+        True
+        >>> Translator.parse(
+        ... "../tests/test_controltable/simple.csv", normalization_method="NFD") == Translator({}, set("012"))
+        True
+        >>> Translator.parse(
+        ... "../tests/test_controltable/nfd.csv", normalization_method="NFD").control_table
+        {'᷒᷒': 'ꝰ', 'ẻ': 'e̾'}
+        >>> Translator.parse(
+        ... "../tests/test_controltable/nfd.csv", normalization_method="NFD") == Translator(
+        ... {'᷒᷒': 'ꝰ', 'ẻ': 'e̾'}, {'᷒᷒', 'ꝯ', 'ẻ', 'ꝰ'})
+        True
+        """
+        chars = {}
+        known_chars = set()
+        with open(table_file) as f:
+            r = csv.DictReader(f)
+            for line in r:
+                line = {
+                    normalize(key, normalization_method): normalize(val, normalization_method)
+                    for key, val in line.items()
+                }
+                # Append to the dict only differences between char and normalized
+                if line["char"] != line["normalized"]:
+                    chars[line["char"]] = line["normalized"]
+                known_chars.add(line["char"])
+        return Translator(chars, known_chars=known_chars)
 
 
 def check_file(
     file: str,
-    table: Translator,
+    translator: Translator,
     normalization_method: Optional[str] = None,
     parser: ClassVar[Parser] = Alto
 ):
     """ Check a file for missing chars in the translation table
 
     :param file: File to parse to check compatibility of characters
-    :param table: Translation table
+    :param translator: Translation table
     :param normalization_method: Method to use on the file content for matching
     :param parser: System to use to parse the XML
 
@@ -208,18 +201,46 @@ def check_file(
     logging.info(f"Parsing {file}")
     for line in instance.get_lines():
         unmatched_chars = unmatched_chars.union(
-            table.get_unknown_chars(str(line), normalization_method=normalization_method)
+            translator.get_unknown_chars(str(line), normalization_method=normalization_method)
         )
 
     return unmatched_chars
 
 
-def convert_file(file: str, control_table: Dict[str, str], normalization_method: Optional[str] = None,
-                 parser: ClassVar[Parser] = Alto) -> Parser:
+def _test_helper(parser: Parser, index: int) -> str:
+    """ Read line at index X
+    
+    Only for tests purposes
+    """
+    for cur_id, line in enumerate(parser.get_lines()):
+        if cur_id == index:
+            return str(line)
+    raise ValueError("Unreached ID")
+
+
+def convert_file(
+    file: str,
+    translator: Translator,
+    normalization_method: Optional[str] = None,
+    parser: ClassVar[Parser] = Alto
+) -> Parser:
+    """ Check a file for missing chars in the translation table
+
+    :param file: File to parse to check compatibility of characters
+    :param translator: Translation table object
+    :param normalization_method: Method to use on the file content for matching
+    :param parser: System to use to parse the XML
+
+    >>> translator = Translator({"⸗": "="})
+    >>> converted = convert_file("../tests/test_data/alto1.xml", translator, "NFD")
+    >>> _test_helper(converted, 1) == "₰"
+    True
+    >>> _test_helper(converted, 0) == "="
+    True
+    """
     logging.info(f"Parsing {file}")
 
     instance = parser(file)
-    translator = Translator(control_table)
 
     def wrapper(line: str) -> str:
         return translator.translate(str(line), normalization_method=normalization_method)
