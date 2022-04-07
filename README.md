@@ -80,3 +80,5 @@ jobs:
 ---
 
 Logo by [Alix Chagué](https://alix-tz.github.io).
+
+The file `original_mufi_json`'s content is under `CC BY-SA 4.0` and comes from https://mufi.info/m.php?p=mufiexport 

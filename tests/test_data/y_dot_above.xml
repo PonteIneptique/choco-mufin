@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<alto xmlns="http://www.loc.gov/standards/alto/ns-v4#">
+  <Layout>
+    <Page>
+      <PrintSpace>
+        <TextBlock>
+            <TextLine ID="eSc_line_b4906e63" TAGREFS="LT183" BASELINE="803 2986 1821 2998" HPOS="803" VPOS="2911" WIDTH="1018" HEIGHT="121">
+                <Shape>
+                    <Polygon POINTS="803 2986 821 2917 1809 2911 1821 2998 1688 3032 809 3009"/>
+                </Shape>
+                <String CONTENT="son enuers dẏagolus le bas" HPOS="803" VPOS="2911" WIDTH="1018" HEIGHT="121"/>
+            </TextLine>
+        </TextBlock>
+      </PrintSpace>
+    </Page>
+  </Layout>
+</alto>
