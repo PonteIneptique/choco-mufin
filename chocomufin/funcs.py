@@ -1,10 +1,20 @@
 import csv
 import logging
+import os.path
 import re
+import json
 import unicodedata
-from typing import Set, Dict, ClassVar, Optional
+from typing import Set, Dict, ClassVar, Optional, Iterable, List
+
+import tqdm
+import click
+import mufidecode
 
 from chocomufin.parsers import Parser, Alto
+
+
+with open(os.path.join(os.path.dirname(__file__), "mufi.json")) as f:
+    MUFI = json.load(f)
 
 
 def normalize(string, method: Optional[str] = None):
@@ -37,13 +47,21 @@ class Translator:
         """
         self._control_table = control_table
         self._control_table_re = re.compile("(" + "|".join([Translator._escape(key) for key in control_table]) + ")")
-        self._known_chars = known_chars or set(self._control_table.keys())
+
+        if known_chars:
+            self._known_chars = known_chars.union(set(self._control_table.keys()))
+        else:
+            self._known_chars = set(self._control_table.keys())
+
         self._known_chars_re = re.compile(
             "(" + "|".join([
                 Translator._escape(key)
-                for key in self._known_chars.union({r"#r#\s"}).union(set(self._control_table.keys()))
+                for key in self._known_chars.union({r"#r#\s"})
             ]) + ")"
         )
+
+    def __len__(self):
+        return len(self._known_chars)
 
     def __eq__(self, other):
         return isinstance(other, Translator) and \
@@ -163,18 +181,26 @@ class Translator:
         """
         chars = {}
         known_chars = set()
-        with open(table_file) as f:
-            r = csv.DictReader(f)
-            for line in r:
-                line = {
-                    normalize(key, normalization_method): normalize(val, normalization_method)
-                    for key, val in line.items()
-                }
-                # Append to the dict only differences between char and normalized
-                if line["char"] != line["normalized"]:
-                    chars[line["char"]] = line["normalized"]
-                known_chars.add(line["char"])
+
+        for line in cls.get_csv(table_file):
+            line = {
+                normalize(key, normalization_method): normalize(val, normalization_method)
+                for key, val in line.items()
+            }
+            # Append to the dict only differences between char and normalized
+            if line["char"] != line["replacement"]:
+                chars[line["char"]] = line["replacement"]
+            known_chars.add(line["char"])
         return Translator(chars, known_chars=known_chars)
+
+    @staticmethod
+    def get_csv(table_file: str):
+        """ Get a list of row as dict
+
+        >>> Translator.get_csv()
+        """
+        with open(table_file) as f:
+            yield from csv.DictReader(f)
 
 
 def check_file(
@@ -249,3 +275,121 @@ def convert_file(
         continue
 
     return instance
+
+
+class CharacterUnknown(ValueError):
+    """ Exception raised when a character as no name"""
+
+
+def get_character_name(character: str) -> str:
+    name = unicodedata.name(character, None)
+    if name:
+        return name
+    name = MUFI.get(name)
+    if name:
+        return name["description"]
+    raise CharacterUnknown
+
+
+def generate(
+    files: Iterable[str],
+    table_file: Optional[str] = None,
+    mode: str = "add",
+    parser: str = "alto",
+    echo: bool = True,
+    normalization_method: str = "NFC"
+):
+    prior: Dict[str, Dict[str, str]] = {}
+    translator = Translator({})
+    if parser == "alto":
+        parser = Alto
+
+    if table_file and mode != "reset":
+        prior = {row["char"]: row for row in (Translator.get_csv(table_file))}
+        translator = Translator.parse(table_file, normalization_method=normalization_method)
+        if echo:
+            click.echo(click.style(f"Loading previous table at path `{prior}`", fg="yellow"))
+            click.echo(click.style(f"`{len(translator)} characters found in the original table`", fg="green"))
+
+    # Mainly decorative stuff
+    decoration = tqdm.tqdm
+    if not echo:
+        def decoration(iterable):
+            return iterable
+
+        def warning(message):
+            logging.warning(message)
+    else:
+        def warning(message: str):
+            click.echo(click.style(message, fg="red"))
+
+    unknown = set()
+    for file in decoration(files):
+        instance = parser(file)
+        for line in instance.get_lines():
+            unknown = unknown.union(
+                translator.get_unknown_chars(
+                    str(line),
+                    normalization_method=normalization_method)
+            )
+
+    # Content is a list of
+    #    with at least char, mufidecode, codepoint and name as keys
+    content: List[Dict[str, str]] = []
+
+    for unknown_char in unknown:
+        # If we get an UNKNOWN_CHAR, we check if this can be normalized with uni/mufidecode
+        try:
+            mufi_char = mufidecode.mufidecode(unknown_char)
+        except:
+            warning(f"Error parsing MUFI value for `{unknown_char}`"
+                    f" (Unicode Hex Code Point: {get_hex(unknown_char)})")
+            mufi_char = "[UNKNOWN]"
+
+        cdict = {
+            "char": unknown_char,
+            "mufidecode": mufi_char,
+            "codepoint": get_hex(unknown_char)
+        }
+
+        try:
+            cdict["name"] = get_character_name(unknown_char)
+        except CharacterUnknown:
+            warning(f"Character `{unknown_char}` has an unknown name"
+                    f" (Unicode Hex Code Point: {get_hex(unknown_char)})")
+            cdict["name"] = "[UNKNOWN-NAME]"
+
+        if unknown_char in prior:
+            cdict = {
+                key: cdict.get(key, "").strip() or value
+                for key, value in prior[unknown_char].items()
+            }
+            prior.pop(unknown_char)
+        content.append(cdict)
+
+    # ToDo: if a character is not in the XML set but in the table.csv, should we keep it in the table.csv ?
+    if prior:
+        if mode == "keep":
+            for character in prior:
+                content.append(prior[character])
+            if echo:
+                click.echo(click.style(f"Characters kept with keep mode: `{', '.join(prior.keys())}`", fg="yellow"))
+        elif mode == "cleanup":
+            pass
+            if echo:
+                click.echo(click.style(f"Characters dropped with clean-up mode: `{', '.join(prior.keys())}`", fg="yellow"))
+
+    base_field_names = ["char", "name", "replacement", "codepoint", "mufidecode"]
+    previous_field_names = set([
+        key
+        for row in content
+        for key in row.keys()
+    ]).difference(set(base_field_names))
+    with open(table_file, "w") as out_file:
+        w = csv.DictWriter(
+            out_file,
+            fieldnames=["char", "name", "replacement", "codepoint", "mufidecode"]+sorted(list(previous_field_names))
+        )
+        w.writeheader()
+        w.writerows(sorted(content, key=lambda x: x.get("char")))
+    return content
