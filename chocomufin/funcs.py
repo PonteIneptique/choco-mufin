@@ -385,14 +385,16 @@ class CharacterUnknown(ValueError):
     """ Exception raised when a character as no name"""
 
 
-def get_character_name(character: str) -> str:
+def get_character_name(character: str, raise_exception: bool = True) -> str:
     name = unicodedata.name(character, None)
     if name:
         return name
-    name = MUFI.get(name)
+    name = MUFI.get(get_hex(character))
     if name:
         return name["description"]
-    raise CharacterUnknown
+    if raise_exception:
+        raise CharacterUnknown
+    return "[[[UNKNOWN NAME]]]"
 
 
 def get_files_unknown_and_known(
@@ -426,7 +428,7 @@ def update_table(
     files: Iterable[str],
     table_file: Optional[str] = None,
     mode: str = "add",
-    parser: str = "alto",
+    parser: ClassVar[Parser] = Alto,
     echo: bool = False,
     normalization_method: Optional[str] = None,
     dest: Optional[str] = None
@@ -460,8 +462,8 @@ def update_table(
     for file in decoration(files):
         instance = parser(file)
         inst_unknown, used_unknown = get_files_unknown_and_known(instance, translator, normalization_method)
-        unknown = unknown.union(unknown)
-        used = used.union(used)
+        unknown = unknown.union(inst_unknown)
+        used = used.union(used_unknown)
 
     # Content is a list of
     #    with at least char, mufidecode, codepoint and name as keys
@@ -503,8 +505,12 @@ def update_table(
             for character in prior:
                 content.append(prior[character])
             if echo:
-                click.echo(click.style(f"Characters kept with keep mode but not necessarily found"
-                                       f": `{', '.join(prior.keys())}`", fg="yellow"))
+                click.echo(click.style(f"Characters kept with keep mode and found"
+                                       f": `{', '.join([char for char in prior.keys() if char in used])}`", fg="yellow")
+                           )
+                click.echo(click.style(f"Characters kept with keep mode but not found"
+                                       f": `{', '.join([char for char in prior.keys() if char not in used])}`", fg="yellow")
+                           )
         elif mode == "cleanup":
             removed = []
             for character in prior:
@@ -514,7 +520,7 @@ def update_table(
                     removed.append(prior[character])
             if echo:
                 if prior:
-                    click.echo(click.style("Characters kept with keep mode: {}".format(
+                    click.echo(click.style("Characters kept because they were used: {}".format(
                         ', '.join([f"`{k}`" for k in sorted(list(used))])
                     ), fg="yellow"))
                 if removed:

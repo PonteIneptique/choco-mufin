@@ -1,6 +1,6 @@
 import logging
 import sys
-from typing import Iterable, ClassVar
+from typing import Iterable, ClassVar, List
 from collections import defaultdict
 
 import tabulate
@@ -8,7 +8,8 @@ import lxml.etree as ET
 import click
 import tqdm
 
-from chocomufin.funcs import Translator, check_file, get_hex, convert_file, update_table, get_character_name
+from chocomufin.funcs import Translator, check_file, get_hex, convert_file, update_table, get_character_name,\
+    normalize
 from chocomufin.parsers import Parser, Alto
 logging.getLogger().setLevel(logging.INFO)
 
@@ -74,7 +75,7 @@ def control(ctx: click.Context, table: str, files: Iterable[str], ignore: str, p
         table.append([
             char.strip(),
             get_hex(char),
-            get_character_name(char),
+            get_character_name(char, raise_exception=False),
             errors[char][0]
         ])
         if len(errors[char]) > 1:
@@ -153,6 +154,23 @@ def generate(ctx: click.Context, table: str, files: Iterable[str], mode: str = "
         parser=parser,
         normalization_method=_get_unorm(ctx)
     )
+
+
+@main.command("get-hex")
+@click.argument("string", type=str)
+@click.pass_context
+def local_hex(ctx: click.Context, string: str):
+    """ Get all hexadecimal of the string """
+    def hex_for_string(inp: str) -> List[str]:
+        return list(map(lambda c: hex(ord(c)), inp))
+
+    normalized = normalize(string, _get_unorm(ctx))
+    normalized_list = [f" {char}" for char in normalized]
+    print(tabulate.tabulate(
+        list(
+            zip(normalized_list, hex_for_string(string))
+        ), headers=["Character", "Unicode Codepoint"], tablefmt="pipe", stralign="center"
+    ))
 
 
 def main_wrap():
