@@ -18,6 +18,9 @@ with open(os.path.join(os.path.dirname(__file__), "mufi.json")) as mufi_file_io:
     MUFI = json.load(mufi_file_io)
 
 
+_SUB_MUFI_SUPPORT_CHAR = re.compile("◌")
+
+
 def normalize(string, method: Optional[str] = None):
     """ Apply or not unicode normalization to `string`
 
@@ -41,6 +44,7 @@ def get_hex(char: str) -> str:
 
 
 class Translator:
+
     def __init__(self, control_table: Dict[str, str], known_chars: Optional[Union[Set[str], List[str]]] = None):
         """ Apply a normalization dict to a string
 
@@ -75,6 +79,28 @@ class Translator:
                 for key in self._known_chars_lists + [r"#r#\s"]
             ]) + ")"
         )
+
+    @staticmethod
+    def _remove_character_support(string: str, normalization_method: Optional[str]) -> str:
+        """ Remove the support character for combining characters
+
+        No support for this function in case of no normalization as we normalize both way
+
+        >>> Translator._remove_character_support("◌ͤ", "NFC") == chr(0x364)
+        True
+        >>> Translator._remove_character_support("◌ͤ", "NFKD") == chr(0x364)
+        True
+        >>> Translator._remove_character_support("◌ͤ", None) == "◌ͤ"
+        True
+        """
+
+        if not normalization_method:
+            return string
+        else:
+            return normalize(
+                _SUB_MUFI_SUPPORT_CHAR.sub("", normalize(string, "NFD")),
+                method=normalization_method
+            )
 
     def __len__(self):
         return len(self._known_chars)
@@ -262,7 +288,8 @@ class Translator:
 
         for line in cls.get_csv(table_file):
             line = {
-                normalize(key, normalization_method): normalize(val, normalization_method)
+                cls._remove_character_support(key, normalization_method): cls._remove_character_support(
+                    val, normalization_method)
                 for key, val in line.items()
             }
             # Append to the dict only differences between char and normalized

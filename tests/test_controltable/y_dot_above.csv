@@ -1,0 +1,3 @@
+char,name,replacement,ontographe
+ẏ,LATIN SMALL LETTER Y WITH DIAERESIS,y,y
+#r#[a-zA-Z],All letters,#r#[a-zA-Z],

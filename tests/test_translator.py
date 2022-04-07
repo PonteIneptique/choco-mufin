@@ -30,3 +30,23 @@ class TestRegressionTranslator(TestCase):
         )
         self.assertEqual(_test_helper(instance, 0), "son enuers dyagolus le bas", "Conversion works well")
 
+    def test_combining_support_char(self):
+        """ Test that when finding something like ◌ͨ ChocoMufin ignores the ◌ char."""
+        translator = Translator.parse(
+            self._get_file("test_controltable/support_combining_char.csv"),
+            "NFD"
+        )
+        unk, kno = get_files_unknown_and_known(
+            Alto(self._get_file("test_data/support_combining_char.xml")),
+            translator,
+            "NFD"
+        )
+        self.assertCountEqual(kno, {'#r#[a-zA-Z]', 'ͥ'}, "The original stripped char should be visible")
+        self.assertCountEqual(unk, {"ꝑ", ".", "'"}, "Y+DOT above should be known, even in NFD")
+
+        instance = convert_file(
+            self._get_file("test_data/support_combining_char.xml"),
+            translator=translator,
+            normalization_method="NFD"
+        )
+        self.assertEqual(_test_helper(instance, 0), "qͨ les oi ꝑler", "Conversion works well")
