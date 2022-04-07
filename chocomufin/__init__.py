@@ -4,7 +4,7 @@ import csv
 import sys
 import re
 import os
-from typing import Set, Pattern, Iterable, Union, Dict, Any, ClassVar
+from typing import Iterable
 from collections import defaultdict
 
 import mufidecode
@@ -13,75 +13,12 @@ import lxml.etree as ET
 import click
 import tqdm
 
+from chocomufin import parse_table, get_hex
+from chocomufin.funcs import parse_table, check_file, get_hex, convert_file
+from chocomufin import cmds
 
 from .parsers import Parser, Alto
 logging.getLogger().setLevel(logging.INFO)
-
-IGNORE = re.compile(r"[\s']+")
-
-
-def ignore(line: str, regex: Pattern = IGNORE) -> str:
-    """ Replaces characters that needs to be ignored
-    """
-    return regex.sub("", line)
-
-
-def parse_table(table_file: str = "table.csv", as_dict: bool = False,
-                normalization: str = "NFC") -> Union[Set[str], Dict[str, str]]:
-    """ Parse a character translation table
-    """
-    if as_dict:
-        chars = {}
-        with open(table_file) as f:
-            r = csv.DictReader(f)
-            for line in r:
-                line = {key: unicodedata.normalize(normalization, val) for key, val in line.items()}
-                if line["char"] != line["normalized"]:
-                    chars[line["char"]] = line["normalized"]
-        return chars
-
-    # if not as_dict, returns a set
-    chars = set()
-    with open(table_file) as f:
-        r = csv.DictReader(f)
-        for line in r:
-            line = {key: unicodedata.normalize(normalization, val) for key, val in line.items()}
-            chars.add(line["char"])
-    return chars
-
-
-def check_file(file, table, normalization: str = "NFC", parser: ClassVar[Parser] = Alto):
-    """ Check a file for missing chars in the translation table
-    """
-    text = set()
-
-    instance = Parser(file)
-    logging.info(f"Parsing {file}")
-    for line in instance.get_lines():
-        text = text.union(set(ignore(unicodedata.normalize(normalization, str(line)))))
-
-    return text - table
-
-
-def get_hex(char: str) -> str:
-    return str(hex(ord(char))).replace("0x", "").rjust(4, "0").upper().strip()
-
-
-def convert_file(file: str, control_table: Dict[str, str], normalization: str = "NFC",
-                 parser: ClassVar[Parser] = Alto) -> Parser:
-    logging.info(f"Parsing {file}")
-    def _normalize(line_text: str) -> str:
-        return "".join([
-            control_table.get(char, char)
-            for char in unicodedata.normalize(normalization, str(line_text))
-        ])
-
-    instance = parser(file)
-
-    for _ in instance.get_lines(set_callback=_normalize):
-        continue
-
-    return instance
 
 
 @click.group()
@@ -177,78 +114,7 @@ def convert(ctx: click.Context, table: str, files: Iterable[str], suffix: str = 
 def generate(ctx: click.Context, table: str, files: Iterable[str], mode: str = "keep", parser: str = "alto"):
     """ Generate a [TABLE] of accepted character for transcriptions based on [FILES]
     """
-    prior = {}
-    if parser == "alto":
-        parser = Alto
 
-    if os.path.isfile(table) and mode != "reset":
-        click.echo(click.style(f"Loading previous table at path `{table}`", fg="yellow"))
-
-        with open(table) as f:
-            r = csv.DictReader(f)
-            for char_from_table in r:
-                char_from_table = {
-                    key: unicodedata.normalize(ctx.obj["unorm"], val) if key == "char" else val
-                    for key, val in char_from_table.items()
-                }
-                print(char_from_table)
-                prior[char_from_table["char"]] = char_from_table
-        click.echo(click.style(f"`{len(prior)} characters found in the original table`", fg="green"))
-
-    text = set()
-    for file in tqdm.tqdm(files):
-        instance = parser(file)
-        text = text.union(set(
-            unicodedata.normalize(
-                ctx.obj["unorm"],
-                " ".join(instance.get_lines())
-            )
-        ))
-
-    all_chars = sorted([char for char in text if char.strip()])
-    content = []
-
-    for char_from_xmls in all_chars:
-        if not re.match(r"\s", char_from_xmls):
-            try:
-                mufi_char = mufidecode.mufidecode(char_from_xmls)
-            except:
-                logging.warning(f"Error parsing MUFI value for `{char_from_xmls}`"
-                                f" (Unicode Hex Code Point: {get_hex(char_from_xmls)})")
-                mufi_char = "[UNKNOWN]"
-            cdict = {
-                "char": char_from_xmls,
-                "mufidecode": mufi_char,
-                "codepoint": get_hex(char_from_xmls)
-            }
-            try:
-                cdict["name"] = unicodedata.name(char_from_xmls)
-            except ValueError:
-                logging.warning(f"Character `{char_from_xmls}` has an unknown name"
-                                f" (Unicode Hex Code Point: {get_hex(char_from_xmls)})")
-                cdict["name"] = "[UNKNOWN-NAME]"
-
-            if char_from_xmls in prior:
-                cdict = {
-                    key: cdict.get(key, "").strip() or value
-                    for key, value in prior[char_from_xmls].items()
-                }
-                prior.pop(char_from_xmls)
-            content.append(cdict)
-
-    # ToDo: if a character is not in the XML set but in the table.csv, should we keep it in the table.csv ?
-    if prior:
-        if mode == "keep":
-            for character in prior:
-                content.append(prior[character])
-            click.echo(click.style(f"Characters kept with keep mode: `{', '.join(prior.keys())}`", fg="yellow"))
-        elif mode == "cleanup":
-            click.echo(click.style(f"Characters dropped with clean-up mode: `{', '.join(prior.keys())}`", fg="yellow"))
-
-    with open(table, "w") as f:
-        w = csv.DictWriter(f, fieldnames=["char", "name", "normalized", "codepoint", "mufidecode"])
-        w.writeheader()
-        w.writerows(content)
 
 
 def main_wrap():
