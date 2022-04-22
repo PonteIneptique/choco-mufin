@@ -15,7 +15,7 @@ class Parser(metaclass=ABCMeta):
         raise NotImplementedError
 
 
-class XmlParser(metaclass=ABCMeta):
+class XmlParser(Parser):
     def __init__(self, filepath: str):
         super(XmlParser, self).__init__(filepath)
         self.xml = ET.parse(filepath)
