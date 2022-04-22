@@ -10,11 +10,11 @@ import tqdm
 
 from chocomufin.funcs import Translator, check_file, get_hex, convert_file, update_table, get_character_name,\
     normalize
-from chocomufin.parsers import Parser, Alto
+from chocomufin.parsers import Parser, Alto, PlainText
 logging.getLogger().setLevel(logging.INFO)
 
 
-PARSERS = click.Choice(["alto"])
+PARSERS = click.Choice(["alto", "txt"])
 
 
 def _get_unorm(ctx):
@@ -24,6 +24,8 @@ def _get_unorm(ctx):
 def _get_parser(parser_choice: str) -> ClassVar[Parser]:
     if parser_choice == "alto":
         return Alto
+    elif parser_choice == "txt":
+        return PlainText
     raise ValueError("Unknown parser")
 
 
@@ -124,7 +126,7 @@ def convert(
 
         instance: Parser = convert_file(file, control_table, normalization_method=_get_unorm(ctx), parser=parser)
         with open(file.replace(".xml", suffix) if ".xml" in file else file+suffix, "w") as f:
-            f.write(ET.tostring(instance.xml, encoding=str, xml_declaration=False, pretty_print=True))
+            f.write(instance.dump())
 
 
 @main.command("generate")
