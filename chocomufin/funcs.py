@@ -461,7 +461,7 @@ def update_table(
     if parser == "alto":
         parser = Alto
 
-    if table_file and mode != "reset":
+    if table_file and os.path.exists(table_file) and mode != "reset":
         prior = {row["char"]: row for row in (Translator.get_csv(table_file))}
         translator = Translator.parse(table_file, normalization_method=normalization_method)
         if echo:
