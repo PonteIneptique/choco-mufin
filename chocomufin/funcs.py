@@ -1,7 +1,7 @@
 import csv
 import logging
 import os.path
-import re
+import regex as re
 import json
 import unicodedata
 from typing import Set, Dict, ClassVar, Optional, Iterable, List, Tuple, Union
@@ -322,12 +322,16 @@ class Translator:
         '5'
         >>> Translator._replace_regexp("ab")
         'ab'
+        >>> Translator._replace_regexp("#r#\p{Greek}") == r"\p{Greek}"
+        True
         """
         if string.startswith("#r#"):
             if len(string) > 3:
                 string = string[3:]
                 if string.startswith("\\u"):
                     return str(chr(int(string.replace("\\u", ""), 16)))
+                elif re.match(r"\\p", string):
+                    return string
                 return string
             return ""
         return string

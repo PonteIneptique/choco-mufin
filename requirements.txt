@@ -4,3 +4,4 @@ mufidecode==0.1.0
 Unidecode==1.2.0
 tabulate==0.8.9
 tqdm==4.61.1
+regex~=2022.4.24
