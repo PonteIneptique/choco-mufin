@@ -138,7 +138,7 @@ def convert(
                                    " --mode=reset will drop everything from the original table,"
                                    " --mode=cleanup will drop values which have not been found in the [FILES].",
               show_default=True)
-@click.option("--parser", type=click.Choice(["alto"]), default="alto", help="XML format of the file", show_default=True)
+@click.option("--parser", type=PARSERS, default="alto", help="XML format of the file", show_default=True)
 @click.option("--dest", type=click.Path(file_okay=True, dir_okay=False), default=None,
               help="If set up, instead of writing to file in update, will write in dest")
 @click.pass_context
