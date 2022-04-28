@@ -491,6 +491,7 @@ def update_table(
     # Content is a list of
     #    with at least char, mufidecode, codepoint and name as keys
     content: List[Dict[str, str]] = []
+    found = set()
 
     for unknown_char in unknown:
         # If we get an UNKNOWN_CHAR, we check if this can be normalized with uni/mufidecode
@@ -515,30 +516,34 @@ def update_table(
             cdict["name"] = "[UNKNOWN-NAME]"
 
         if unknown_char in prior:
-            cdict = {
-                key: cdict.get(key, "").strip() or value
-                for key, value in prior[unknown_char].items()
-            }
-            prior.pop(unknown_char)
+            #cdict = {
+            #    key: cdict.get(key, "").strip() or value
+            #    for key, value in prior[unknown_char].items()
+            #}
+            found.add(unknown_char)
+            continue
         content.append(cdict)
 
     # ToDo: if a character is not in the XML set but in the table.csv, should we keep it in the table.csv ?
     if prior:
+        content = sorted(content, key=lambda x: x.get("char"))
         if mode == "keep":
-            for character in prior:
-                content.append(prior[character])
+            content = list(prior.values()) + content
             if echo:
                 click.echo(click.style(f"Characters kept with keep mode and found"
-                                       f": `{', '.join([char for char in prior.keys() if char in used])}`", fg="yellow")
+                                       f": `{', '.join(sorted(list(set(prior.keys()).intersection(found))))}`",
+                                       fg="yellow")
                            )
                 click.echo(click.style(f"Characters kept with keep mode but not found"
-                                       f": `{', '.join([char for char in prior.keys() if char not in used])}`", fg="yellow")
+                                       f": `{', '.join(sorted(list(set(prior.keys()).difference(found))))}`",
+                                       fg="yellow")
                            )
         elif mode == "cleanup":
             removed = []
+            cleanupcontent = []
             for character in prior:
-                if character in used:
-                    content.append(prior[character])
+                if character in used or character in found:
+                    cleanupcontent.append(prior[character])
                 else:
                     removed.append(prior[character])
             if echo:
@@ -549,7 +554,7 @@ def update_table(
                 if removed:
                     click.echo(click.style("Replacement removed because they were not used", fg="red"))
                     click.echo(tabulate.tabulate(removed, showindex=True, headers="keys", tablefmt="pipe"))
-
+            content = cleanupcontent + content
     base_field_names = ["char", "name", "replacement", "codepoint", "mufidecode"]
     previous_field_names = set([
         key
@@ -565,5 +570,5 @@ def update_table(
             fieldnames=["char", "name", "replacement", "codepoint", "mufidecode"]+sorted(list(previous_field_names))
         )
         w.writeheader()
-        w.writerows(sorted(content, key=lambda x: x.get("char")))
+        w.writerows(content)
     return content
