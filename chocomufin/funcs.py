@@ -100,6 +100,8 @@ class Translator:
 
         if not normalization_method:
             return string
+        elif string == "◌":
+            return string
         else:
             return normalize(
                 _SUB_MUFI_SUPPORT_CHAR.sub("", normalize(string, "NFD")),
