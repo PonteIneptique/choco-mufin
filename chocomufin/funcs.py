@@ -336,6 +336,7 @@ class Translator:
             return ""
         return string
 
+
 def check_file(
     file: str,
     translator: Translator,
@@ -402,7 +403,9 @@ def convert_file(
     instance = parser(file)
 
     def wrapper(line: str) -> str:
-        return translator.translate(str(line), normalization_method=normalization_method)
+        new = translator.translate(str(line), normalization_method=normalization_method)
+        instance.add_log(line, new)
+        return new
 
     for _ in instance.get_lines(set_callback=wrapper):
         continue

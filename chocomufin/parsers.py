@@ -1,4 +1,4 @@
-from typing import Iterable, Dict, Optional, Callable, List
+from typing import Iterable, Dict, Optional, Callable, List, Tuple
 from abc import ABCMeta
 
 import lxml.etree as ET
@@ -7,6 +7,10 @@ import lxml.etree as ET
 class Parser(metaclass=ABCMeta):
     def __init__(self, filepath: str):
         self.fp = filepath
+        self.logs: List[Tuple[str, str]] = []
+
+    def add_log(self, before: str, after: str):
+        self.logs.append((before, after))
 
     def get_lines(self, set_callback: Optional[Callable[[str], str]] = None) -> Iterable[str]:
         raise NotImplementedError
