@@ -14,8 +14,8 @@ such as abbreviation, hence MUFI.
 
 ## Commands
 
-The workflow is generally the following: you generate a conversion table (`choco-mufin generate table.csv your-files.xml`), then
-use this table to either control (`choco-mufin control table.csv your-files.xml`) or convert them (`choco-mufin convert table.csv your-files.xml`).
+The workflow is generally the following: you generate a conversion table (`chocomufin generate table.csv your-files.xml`), then
+use this table to either control (`chocomufin control table.csv your-files.xml`) or convert them (`chocomufin convert table.csv your-files.xml`).
 Conversion will automatically add a suffix which you can define with `--suffix`.
 
 ## Example table of conversion
