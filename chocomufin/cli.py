@@ -11,11 +11,11 @@ import tqdm
 
 from chocomufin.funcs import Translator, check_file, get_hex, convert_file, update_table, get_character_name,\
     normalize
-from chocomufin.parsers import Parser, Alto, PlainText
+from chocomufin.parsers import Parser, Alto, PlainText, Page
 logging.getLogger().setLevel(logging.INFO)
 
 
-PARSERS = click.Choice(["alto", "txt"])
+PARSERS = click.Choice(["alto", "txt", "page"])
 
 
 def _get_unorm(ctx):
@@ -27,6 +27,8 @@ def _get_parser(parser_choice: str) -> ClassVar[Parser]:
         return Alto
     elif parser_choice == "txt":
         return PlainText
+    elif parser_choice == "page":
+        return Page
     raise ValueError("Unknown parser")
 
 

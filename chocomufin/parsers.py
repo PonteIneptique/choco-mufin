@@ -65,3 +65,18 @@ class PlainText(Parser):
 
     def dump(self) -> str:
         return "".join(self._text)
+
+class Page(XmlParser):
+    @staticmethod
+    def get_ns(xml: ET.ElementBase) -> Dict[str, str]:
+        return {"pc": "http://schema.primaresearch.org/PAGE/gts/pagecontent/2019-07-15"}
+    
+    def get_lines(self, set_callback:Optional[Callable[[str], str]] = None) -> Iterable[str]:
+        for line in self.xml.xpath("//pc:TextLine/pc:TextEquiv/pc:Unicode", namespaces=self.ns):
+        #for line in self.xml.findall(".//{*}TextLine/{*}TextEquiv/{*}Unicode"):
+            if not line.text:
+                continue
+            if set_callback is not None:
+                line.text = set_callback(line.text)
+            yield line.text
+        return
