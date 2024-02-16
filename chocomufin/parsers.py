@@ -73,7 +73,6 @@ class Page(XmlParser):
     
     def get_lines(self, set_callback:Optional[Callable[[str], str]] = None) -> Iterable[str]:
         for line in self.xml.xpath("//pc:TextLine/pc:TextEquiv/pc:Unicode", namespaces=self.ns):
-        #for line in self.xml.findall(".//{*}TextLine/{*}TextEquiv/{*}Unicode"):
             if not line.text:
                 continue
             if set_callback is not None:
