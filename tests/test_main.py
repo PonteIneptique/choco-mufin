@@ -34,7 +34,7 @@ class AltoTestCase(TestCase):
 
     def getControlTable(self, filename: str):
         # is `return os.path.join("test_controltable", filename)` sufficient?
-        return os.path.join(self._folder, "..", "test_controltable", filename)
+        return os.path.join(self._folder, "..", "..", "test_controltable", filename)
 
     # adapted from test_translator.py
     def test_ydiaresis(self):
@@ -61,7 +61,7 @@ class AltoTestCase(TestCase):
         self.assertCountEqual(unk, set(), "Y+DOT above should be known, even in NFD")
 
         instance = convert_file(
-            self._get_file(self.getFile("y_dot_above.xml")),
+            self.getFile("y_dot_above.xml"),
             translator=translator,
             normalization_method="NFD"
         )
