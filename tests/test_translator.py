@@ -12,7 +12,7 @@ class TestRegressionTranslator(TestCase):
     def test_ydiaresis(self):
         """ Test a weird bug with Y + DOT ABOVE"""
         translator = Translator.parse(
-            self._get_file("test_controltabley_dot_above.csv"),
+            self._get_file("test_controltable/y_dot_above.csv"),
             "NFD"
         )
         unk, kno = get_files_unknown_and_known(
