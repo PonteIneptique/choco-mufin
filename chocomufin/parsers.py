@@ -72,6 +72,7 @@ class Page(XmlParser):
         return {"pc": "http://schema.primaresearch.org/PAGE/gts/pagecontent/2019-07-15"}
     
     def get_lines(self, set_callback:Optional[Callable[[str], str]] = None) -> Iterable[str]:
+        # todo: use find_all() instead of xpath
         for line in self.xml.xpath("//pc:TextLine/pc:TextEquiv/pc:Unicode", namespaces=self.ns):
             if not line.text:
                 continue
