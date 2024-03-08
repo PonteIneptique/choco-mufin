@@ -16,7 +16,7 @@ class TestRegressionTranslator(TestCase):
             "NFD"
         )
         unk, kno = get_files_unknown_and_known(
-            Alto(self._get_file("test_data/y_dot_above.xml")),
+            Alto(self._get_file("test_data/alto/y_dot_above.xml")),
             translator,
             "NFD"
         )
@@ -24,7 +24,7 @@ class TestRegressionTranslator(TestCase):
         self.assertCountEqual(unk, set(), "Y+DOT above should be known, even in NFD")
 
         instance = convert_file(
-            self._get_file("test_data/y_dot_above.xml"),
+            self._get_file("test_data/alto/y_dot_above.xml"),
             translator=translator,
             normalization_method="NFD"
         )
@@ -37,7 +37,7 @@ class TestRegressionTranslator(TestCase):
             "NFD"
         )
         unk, kno = get_files_unknown_and_known(
-            Alto(self._get_file("test_data/support_combining_char.xml")),
+            Alto(self._get_file("test_data/alto/support_combining_char.xml")),
             translator,
             "NFD"
         )
@@ -45,7 +45,7 @@ class TestRegressionTranslator(TestCase):
         self.assertCountEqual(unk, {"ꝑ", ".", "'"}, "Y+DOT above should be known, even in NFD")
 
         instance = convert_file(
-            self._get_file("test_data/support_combining_char.xml"),
+            self._get_file("test_data/alto/support_combining_char.xml"),
             translator=translator,
             normalization_method="NFD"
         )
