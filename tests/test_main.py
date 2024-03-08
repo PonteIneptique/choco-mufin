@@ -60,11 +60,19 @@ class AltoTestCase(TestCase):
         self.assertCountEqual(kno, {'ẏ', '#r#[a-zA-Z]'}, "Y+DOT above should be known, even in NFD")
         self.assertCountEqual(unk, set(), "Y+DOT above should be known, even in NFD")
 
-        instance = convert_file(
-            self.getFile("y_dot_above.xml"),
-            translator=translator,
-            normalization_method="NFD"
-        )
+        if self._format == "alto":
+            instance = convert_file(
+                self.getFile("y_dot_above.xml"),
+                translator=translator,
+                normalization_method="NFD"
+            )
+        elif self._format == "page":
+            instance = convert_file(
+                self.getFile("y_dot_above.xml"),
+                translator=translator,
+                normalization_method="NFD",
+                parser=Page
+            )
         self.assertEqual(_test_helper(instance, 0), "son enuers dyagolus le bas", "Conversion works well")
 
     # adapted from test_translator.py
@@ -90,11 +98,19 @@ class AltoTestCase(TestCase):
         self.assertCountEqual(kno, {'#r#[a-zA-Z]', 'ͥ'}, "The original stripped char should be visible")
         self.assertCountEqual(unk, {"ꝑ", ".", "'"}, "Y+DOT above should be known, even in NFD")
 
-        instance = convert_file(
-            self.getFile("support_combining_char.xml"),
-            translator=translator,
-            normalization_method="NFD"
-        )
+        if self._format == "alto":
+            instance = convert_file(
+                self.getFile("support_combining_char.xml"),
+                translator=translator,
+                normalization_method="NFD"
+            )
+        elif self._format == "page":
+            instance = convert_file(
+                self.getFile("support_combining_char.xml"),
+                translator=translator,
+                normalization_method="NFD",
+                parser=Page
+            )
         self.assertEqual(_test_helper(instance, 0), "qͨ les oi ꝑler", "Conversion works well")
 
 
