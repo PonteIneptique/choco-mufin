@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<alto xmlns="http://www.loc.gov/standards/alto/ns-v4#">
+  <Layout>
+    <Page>
+      <PrintSpace>
+        <TextBlock>
+          <TextLine>
+    	    <String CONTENT="la somme de sept cens livres Tournois, pour pa¬"></String>
+          </TextLine>
+          <TextLine>
+	        <String CONTENT="ſuivant ſe quil a pleu a V.M. commander a M^r le cardinal de gondy"></String>
+          </TextLine>
+        </TextBlock>
+      </PrintSpace>
+    </Page>
+  </Layout>
+</alto>

@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<PcGts xmlns="http://schema.primaresearch.org/PAGE/gts/pagecontent/2019-07-15">
+  <Page>
+    <TextRegion>
+      <TextLine>
+        <TextEquiv>
+          <Unicode>la somme de sept cens livres Tournois, pour pa¬</Unicode>
+        </TextEquiv>
+      </TextLine>
+      <TextLine>
+        <TextEquiv>
+          <Unicode>ſuivant ſe quil a pleu a V.M. commander a M^r le cardinal de gondy</Unicode>
+        </TextEquiv>
+      </TextLine>
+    </TextRegion>
+  </Page>
+</PcGts>

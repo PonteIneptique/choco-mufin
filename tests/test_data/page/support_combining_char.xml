@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<PcGts xmlns="http://schema.primaresearch.org/PAGE/gts/pagecontent/2019-07-15">
+  <Page>
+    <TextRegion>
+      <TextLine>
+        <TextEquiv>
+          <Unicode>qͥ les oi ꝑler</Unicode>
+        </TextEquiv>
+      </TextLine>
+      <TextLine>
+        <TextEquiv>
+          <Unicode>&#39;ba. </Unicode>
+        </TextEquiv>
+      </TextLine>
+    </TextRegion>
+  </Page>
+</PcGts>

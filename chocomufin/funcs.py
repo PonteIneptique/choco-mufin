@@ -350,9 +350,9 @@ def check_file(
     :param normalization_method: Method to use on the file content for matching
     :param parser: System to use to parse the XML
 
-    >>> check_file("tests/test_data/alto1.xml", Translator({})) == {'₰', '⸗'}
+    >>> check_file("tests/test_data/alto/alto1.xml", Translator({})) == {'₰', '⸗'}
     True
-    >>> check_file("tests/test_data/alto1.xml", Translator({'₰': ""})) == {'⸗'}
+    >>> check_file("tests/test_data/alto/alto1.xml", Translator({'₰': ""})) == {'⸗'}
     True
     """
     unmatched_chars = set()
@@ -392,7 +392,7 @@ def convert_file(
     :param parser: System to use to parse the XML
 
     >>> translator = Translator({"⸗": "="})
-    >>> converted = convert_file("tests/test_data/alto1.xml", translator, "NFD")
+    >>> converted = convert_file("tests/test_data/alto/alto1.xml", translator, "NFD")
     >>> _test_helper(converted, 1) == "₰"
     True
     >>> _test_helper(converted, 0) == "="
