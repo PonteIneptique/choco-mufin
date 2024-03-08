@@ -15,6 +15,7 @@ class _DerivedOutput:
 class AltoTestCase(TestCase):
     FOLDER = "alto"
     SCHEMA_ERROR = "DescriptionW"
+    PARSER = {"alto": Alto, "page": Page}
 
     def setUp(self) -> None:
         self._folder = os.path.join(
@@ -24,6 +25,7 @@ class AltoTestCase(TestCase):
         )
         self._runner = CliRunner()
         self._format = type(self).FOLDER
+        self._parser = type(self).PARSER.get(type(self).FOLDER, Alto)
 
     def cmd(self, *args):
         out = self._runner.invoke(cmd, ["--format", self._format, *args])
@@ -43,36 +45,21 @@ class AltoTestCase(TestCase):
             self.getControlTable("y_dot_above.csv"),
             "NFD"
         )
-        if self._format == "alto":
-            unk, kno = get_files_unknown_and_known(
-                Alto(self.getFile("y_dot_above.xml")),
-                translator,
-                "NFD"
-            )
-        # I feel like this goes against the idea that this is AltoTestCase... but I don't see how else to minimize the replication of codes...
-        elif self._format == "page":
-            unk, kno = get_files_unknown_and_known(
-                Page(self.getFile("y_dot_above.xml")),
-                translator,
-                "NFD"
-            )
+        unk, kno = get_files_unknown_and_known(
+            self._parser(self.getFile("y_dot_above.xml")),
+            translator,
+            "NFD"
+        )
         
         self.assertCountEqual(kno, {'ẏ', '#r#[a-zA-Z]'}, "Y+DOT above should be known, even in NFD")
         self.assertCountEqual(unk, set(), "Y+DOT above should be known, even in NFD")
 
-        if self._format == "alto":
-            instance = convert_file(
-                self.getFile("y_dot_above.xml"),
-                translator=translator,
-                normalization_method="NFD"
-            )
-        elif self._format == "page":
-            instance = convert_file(
-                self.getFile("y_dot_above.xml"),
-                translator=translator,
-                normalization_method="NFD",
-                parser=Page
-            )
+        instance = convert_file(
+            self.getFile("y_dot_above.xml"),
+            translator=translator,
+            normalization_method="NFD",
+            parser=self._parser
+        )
         self.assertEqual(_test_helper(instance, 0), "son enuers dyagolus le bas", "Conversion works well")
 
     # adapted from test_translator.py
@@ -82,35 +69,20 @@ class AltoTestCase(TestCase):
             self.getControlTable("support_combining_char.csv"),
             "NFD"
         )
-        if self._format == "alto":
-            unk, kno = get_files_unknown_and_known(
-                Alto(self.getFile("support_combining_char.xml")),
-                translator,
-                "NFD"
-            )
-        # same same, should this distinction Page/Alto be done somewhere else?
-        elif self._format == "page":
-            unk, kno = get_files_unknown_and_known(
-                Page(self.getFile("support_combining_char.xml")),
-                translator,
-                "NFD"
-            )
+        unk, kno = get_files_unknown_and_known(
+            self._parser(self.getFile("support_combining_char.xml")),
+            translator,
+            "NFD"
+        )
         self.assertCountEqual(kno, {'#r#[a-zA-Z]', 'ͥ'}, "The original stripped char should be visible")
         self.assertCountEqual(unk, {"ꝑ", ".", "'"}, "Y+DOT above should be known, even in NFD")
 
-        if self._format == "alto":
-            instance = convert_file(
-                self.getFile("support_combining_char.xml"),
-                translator=translator,
-                normalization_method="NFD"
-            )
-        elif self._format == "page":
-            instance = convert_file(
-                self.getFile("support_combining_char.xml"),
-                translator=translator,
-                normalization_method="NFD",
-                parser=Page
-            )
+        instance = convert_file(
+            self.getFile("support_combining_char.xml"),
+            translator=translator,
+            normalization_method="NFD",
+            parser=self._parser
+        )
         self.assertEqual(_test_helper(instance, 0), "qͨ les oi ꝑler", "Conversion works well")
 
 
