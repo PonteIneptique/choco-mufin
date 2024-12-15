@@ -91,7 +91,11 @@ class Replacement:
 
         >>> Replacement("a", "b").replaces("abba")
         'bbbb'
+        >>> Replacement("a", "a").replaces("abba")
+        'abba'
         """
+        if self.char == self.replacement:
+            return string
         return re.sub(self._escape(self.char), self.replacement, string)
 
     def _escape(self, string: str) -> str:
@@ -238,67 +242,70 @@ class Translator:
         True
         """
         line = normalize(line, method=normalization)
+        # Remove spaces
         for repl in self.control_table:
             line = repl.removes(line)
+        line = re.sub(r"\s+", "", line)
         return set(line)
-
 
     def get_known_chars(
             self,
             line: str,
-            normalization_method: Optional[str] = None,
+            normalization: Optional[str] = None,
             ignore: Set[str] = None) -> Set[str]:
         """ Checks a line to see all characters or input that are known
 
         ToDo: Find a more efficient way to do this ?
 
         Simple cases
-        >>> (Translator({"é": "ẽ"})).get_known_chars("ábé") == {"é"}
+        >>> Translator([Replacement("é", "ẽ")]).get_known_chars("ábé") == {"é"}
         True
 
         Input dictionary is not normalized a Translator initialization but it is at parsing
            resulting in 0 known chars
-        >>> (Translator({"é": "ẽ"})).get_known_chars("ábé", normalization_method="NFD") == set()
+        >>> Translator([Replacement("é", "ẽ")]).get_known_chars("ábé", normalization="NFD") == set()
         True
-        >>> (Translator({'́': '̃'})).get_known_chars("ábé", normalization_method="NFD") == {'́'}
+        >>> Translator([Replacement('́', '̃')]).get_known_chars("ábé", normalization="NFD") == {'́'}
         True
-        >>> (Translator({'é': 'ẽ'})).get_known_chars("ábé", normalization_method="NFD") == {'é'}
+        >>> Translator([Replacement('é', 'ẽ')]).get_known_chars("ábé", normalization="NFD") == {'é'}
         True
 
         "Advanced" cases
-        >>> (Translator({'bé': 'dé', 'é': 'ẽ'})).get_known_chars("ábé", normalization_method="NFD") == {'bé', 'é'}
+        >>> Translator(
+        ...     [Replacement('bé', 'dé'), Replacement('é', 'ẽ')]
+        ... ).get_known_chars("ábé", normalization="NFD") == {'bé', 'é'}
         True
-        >>> (Translator({'f': 'f'}, {"a", "b", '́'})).get_known_chars(
-        ...      "ábé", normalization_method="NFD") == {"a", "b", '́'}
+        >>> Translator([
+        ...     Replacement('f', 'f'), Replacement("a", "a"), Replacement("b", "b"), Replacement('́', '́')
+        ... ]).get_known_chars("ábé", normalization="NFD") == {"a", "b", '́'}
         True
-        >>> (Translator({'e': 'e'}, {"a", "b", '́'})).get_known_chars(
-        ...      "ábé", normalization_method="NFD") == {"a", "b", "e", '́'}
+        >>> Translator([
+        ...     Replacement('e', 'e'), Replacement("a", "a"), Replacement("b", "b"), Replacement('́', '́')
+        ... ]).get_known_chars("ábé", normalization="NFD") == {"a", "b", "e", '́'}
         True
-        >>> (Translator({'e': 'e'}, {"#r#[a-z]"})).get_known_chars(
-        ...      "abcdef", normalization_method="NFD") == {"#r#[a-z]", "e"}
+        >>> Translator(
+        ...     [Replacement('e', 'e'), Replacement("[a-z]", "[a-z]", regex=True)]
+        ... ).get_known_chars("abcdef", normalization="NFD") == {"[a-z]", "e"}
         True
-        >>> (Translator({'#r#[a-z]': 'e'}, {"1"})).get_known_chars(
-        ...     "abcdef1", normalization_method="NFD") == {"#r#[a-z]", "1"}
+        >>> Translator([Replacement('[a-z]', 'e', regex=True), Replacement("1", "1")]).get_known_chars(
+        ...     "abcdef1", normalization="NFD") == {"[a-z]", "1"}
         True
-        >>> (Translator({'#r#[a-z]': 'e'}, {"1"})).get_known_chars(
-        ...     "abcdef1", normalization_method="NFD", ignore={"#r#[a-z]"}) == {"1"}
+        >>> Translator([Replacement('[a-z]', 'e'), Replacement("1", "1")]).get_known_chars(
+        ...     "abcdef1", normalization="NFD", ignore={"[a-z]"}) == {"1"}
         True
         """
         if not ignore:
             ignore = set()
-        line = normalize(line, method=normalization_method)
-        transform = set([
-            matcher
-            for matcher in self.control_table.keys()
-            if matcher not in ignore and re.search(self._escape(matcher), line)
-        ])
-        ignore = ignore.union(transform)
-        known_chars = set([
-            matcher
-            for matcher in self.known_chars
-            if matcher not in ignore and re.search(self._escape(matcher), line)
-        ])
-        return transform.union(known_chars)
+
+        known_chars = set()
+
+        # Issue with Transform
+        line = normalize(line, method=normalization)
+        for repl in self.control_table:
+            if repl.is_in(line) and repl.char not in ignore:
+                known_chars.add(repl.char)
+
+        return known_chars
 
     @classmethod
     def parse(
@@ -339,19 +346,19 @@ class Translator:
 def check_file(
     file: str,
     translator: Translator,
-    normalization_method: Optional[str] = None,
+    normalization: Optional[str] = None,
     parser: ClassVar[Parser] = Alto
 ):
     """ Check a file for missing chars in the translation table
 
     :param file: File to parse to check compatibility of characters
     :param translator: Translation table
-    :param normalization_method: Method to use on the file content for matching
+    :param normalization: Method to use on the file content for matching
     :param parser: System to use to parse the XML
 
-    >>> check_file("tests/test_data/alto1.xml", Translator({})) == {'₰', '⸗'}
+    >>> check_file("tests/test_data/alto1.xml", Translator([])) == {'₰', '⸗'}
     True
-    >>> check_file("tests/test_data/alto1.xml", Translator({'₰': ""})) == {'⸗'}
+    >>> check_file("tests/test_data/alto1.xml", Translator([Replacement('₰', "")])) == {'⸗'}
     True
     """
     unmatched_chars = set()
@@ -360,7 +367,7 @@ def check_file(
     logging.info(f"Parsing {file}")
     for line in instance.get_lines():
         unmatched_chars = unmatched_chars.union(
-            translator.get_unknown_chars(str(line), normalization_method=normalization_method)
+            translator.get_unknown_chars(str(line), normalization=normalization)
         )
 
     return unmatched_chars
@@ -380,17 +387,17 @@ def _test_helper(parser: Parser, index: int) -> str:
 def convert_file(
     file: str,
     translator: Translator,
-    normalization_method: Optional[str] = None,
+    normalization: Optional[str] = None,
     parser: ClassVar[Parser] = Alto
 ) -> Parser:
     """ Check a file for missing chars in the translation table
 
     :param file: File to parse to check compatibility of characters
     :param translator: Translation table object
-    :param normalization_method: Method to use on the file content for matching
+    :param normalization: Method to use on the file content for matching
     :param parser: System to use to parse the XML
 
-    >>> translator = Translator({"⸗": "="})
+    >>> translator = Translator([Replacement("⸗", "=")])
     >>> converted = convert_file("tests/test_data/alto1.xml", translator, "NFD")
     >>> _test_helper(converted, 1) == "₰"
     True
@@ -402,7 +409,7 @@ def convert_file(
     instance = parser(file)
 
     def wrapper(line: str) -> str:
-        new = translator.translate(str(line), normalization_method=normalization_method)
+        new = translator.translate(str(line), normalization=normalization)
         instance.add_log(line, new)
         return new
 
@@ -431,7 +438,7 @@ def get_character_name(character: str, raise_exception: bool = True) -> str:
 def get_files_unknown_and_known(
     instance: Parser,
     translator: Translator,
-    normalization_method: Optional[str] = None
+    normalization: Optional[str] = None
 ) -> Tuple[Set[str], Set[str]]:
     """ Retrieves unknown and known characters from an instance
 
@@ -443,13 +450,13 @@ def get_files_unknown_and_known(
         unknown = unknown.union(
             translator.get_unknown_chars(
                 str(line),
-                normalization_method=normalization_method
+                normalization=normalization
             )
         )
         used = used.union(
             translator.get_known_chars(
                 str(line),
-                normalization_method=normalization_method
+                normalization=normalization
             )
         )
     return unknown, used
@@ -461,7 +468,7 @@ def update_table(
     mode: str = "add",
     parser: ClassVar[Parser] = Alto,
     echo: bool = False,
-    normalization_method: Optional[str] = None,
+    normalization: Optional[str] = None,
     dest: Optional[str] = None
 ):
     prior: Dict[str, Dict[str, str]] = {}
@@ -471,7 +478,7 @@ def update_table(
 
     if table_file and os.path.exists(table_file) and mode != "reset":
         prior = {row["char"]: row for row in (Translator.get_csv(table_file))}
-        translator = Translator.parse(table_file, normalization_method=normalization_method)
+        translator = Translator.parse(table_file, normalization=normalization)
         if echo:
             click.echo(click.style(f"Loading previous table at path `{table_file}`", fg="yellow"))
             click.echo(click.style(f"{len(translator)} characters found in the original table", fg="green"))
@@ -492,7 +499,7 @@ def update_table(
     used = set()
     for file in decoration(files):
         instance = parser(file)
-        inst_unknown, used_unknown = get_files_unknown_and_known(instance, translator, normalization_method)
+        inst_unknown, used_unknown = get_files_unknown_and_known(instance, translator, normalization)
         unknown = unknown.union(inst_unknown)
         used = used.union(used_unknown)
 
@@ -524,10 +531,6 @@ def update_table(
             cdict["name"] = "[UNKNOWN-NAME]"
 
         if unknown_char in prior:
-            #cdict = {
-            #    key: cdict.get(key, "").strip() or value
-            #    for key, value in prior[unknown_char].items()
-            #}
             found.add(unknown_char)
             continue
         content.append(cdict)

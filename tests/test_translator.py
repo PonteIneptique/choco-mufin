@@ -20,13 +20,13 @@ class TestRegressionTranslator(TestCase):
             translator,
             "NFD"
         )
-        self.assertCountEqual(kno, {'ẏ', '#r#[a-zA-Z]'}, "Y+DOT above should be known, even in NFD")
+        self.assertCountEqual(kno, {'ẏ', '[a-zA-Z]'}, "Y+DOT above should be known, even in NFD")
         self.assertCountEqual(unk, set(), "Y+DOT above should be known, even in NFD")
 
         instance = convert_file(
             self._get_file("test_data/y_dot_above.xml"),
             translator=translator,
-            normalization_method="NFD"
+            normalization="NFD"
         )
         self.assertEqual(_test_helper(instance, 0), "son enuers dyagolus le bas", "Conversion works well")
 
@@ -41,12 +41,12 @@ class TestRegressionTranslator(TestCase):
             translator,
             "NFD"
         )
-        self.assertCountEqual(kno, {'#r#[a-zA-Z]', 'ͥ'}, "The original stripped char should be visible")
+        self.assertCountEqual(kno, {'[a-zA-Z]', 'ͥ'}, "The original stripped char should be visible")
         self.assertCountEqual(unk, {"ꝑ", ".", "'"}, "Y+DOT above should be known, even in NFD")
 
         instance = convert_file(
             self._get_file("test_data/support_combining_char.xml"),
             translator=translator,
-            normalization_method="NFD"
+            normalization="NFD"
         )
         self.assertEqual(_test_helper(instance, 0), "qͨ les oi ꝑler", "Conversion works well")
