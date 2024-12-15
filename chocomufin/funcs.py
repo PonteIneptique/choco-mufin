@@ -1,10 +1,11 @@
 import csv
+import dataclasses
 import logging
 import os.path
 import regex as re
 import json
 import unicodedata
-from typing import Set, Dict, ClassVar, Optional, Iterable, List, Tuple, Union
+from typing import Set, Dict, ClassVar, Optional, Iterable, List, Tuple, Union, Callable, Any
 
 import tabulate
 import tqdm
@@ -43,46 +44,77 @@ def get_hex(char: str) -> str:
     return str(hex(ord(char))).replace("0x", "").rjust(4, "0").upper().strip()
 
 
-class Translator:
+@dataclasses.dataclass(frozen=True)
+class Replacement:
+    char: str
+    replacement: Union[str, Callable[[str], str]]
+    regex: bool = False
+    record: Dict[str, Any] = dataclasses.field(default_factory=dict)
 
-    def __init__(self, control_table: Dict[str, str], known_chars: Optional[Union[Set[str], List[str]]] = None):
+    def __repr__(self):
+        return f"<repl {' '.join([key+'='+value for key, value in self.record.items()])} />"
+
+    def as_dict(self) -> Dict[str, str]:
+        return self.record
+
+    def is_in(self, string: str) -> bool:
+        """ Check whether a string matches a specific replacement
+
+        >>> Replacement("a", "b", record={"name": "Letter A"}).is_in("abba")
+        True
+        >>> Replacement("a", "b", record={"name": "Letter A"}).is_in("a")
+        True
+        >>> Replacement("a", "b", record={"name": "Letter A"}).is_in("cdef")
+        False
+        """
+        return re.match(".*" + self._escape(self.char) + ".*", string) is not None
+
+    def findall(self, string: str) -> List[str]:
+        """
+        >>> Replacement("a", "a").findall("abba")
+        ['a', 'a']
+        """
+        return re.findall(self._escape(self.char), string)
+
+    def removes(self, string: str) -> str:
+        """
+
+        >>> Replacement("a", "b").removes("abba")
+        'bb'
+        >>> Replacement("[ab]", r"\1", regex=True).removes("abba")
+        ''
+        """
+        return re.sub(self._escape(self.char), '', string)
+
+    def replaces(self, string: str) -> str:
+        """
+
+        >>> Replacement("a", "b").replaces("abba")
+        'bbbb'
+        """
+        return re.sub(self._escape(self.char), self.replacement, string)
+
+    def _escape(self, string: str) -> str:
+        if not self.regex:
+            return re.escape(string)
+        return string
+
+    @staticmethod
+    def normalized(string: str, normalization: Optional[str]) -> str:
+        return normalize(
+            _SUB_MUFI_SUPPORT_CHAR.sub("", normalize(string, "NFD")),
+            method=normalization
+        )
+
+
+class Translator:
+    def __init__(self, control_table: List[Replacement], normalization: Optional[str] = None):
         """ Apply a normalization dict to a string
 
         :param control_table: Dictionary of string-to-string replacement
         """
-        self._control_table: Dict[str, str] = control_table
-        self._replace_table: Dict[str, str] = {
-            self._replace_regexp(match): repl
-            for match, repl in control_table.items()
-        }
-        self._control_table_re = re.compile("(" + "|".join([Translator._escape(key) for key in control_table]) + ")")
-
-        self._known_chars: Set[str] = set()
-        self._known_chars_lists: List[str] = []
-
-        if not known_chars:
-            self._known_chars = set(self._control_table.keys())
-            self._known_chars_lists = list(self._control_table.keys())
-        elif isinstance(known_chars, list):
-            self._known_chars_lists = known_chars
-            self._known_chars = set(known_chars).union(set(self._control_table.keys()))
-        else:
-            self._known_chars = known_chars.union(set(self._control_table.keys()))
-
-            def get_order(char):
-                chars = list(self._control_table.keys())
-                if char in chars:
-                    return chars.index(char)
-                return len(chars)+1
-
-            self._known_chars_lists = sorted(list(self._known_chars), key=get_order)
-
-        self._known_chars_re = re.compile(
-            "(" + "|".join([
-                Translator._escape(key)
-                for key in self._known_chars_lists + [r"#r#\s"]
-            ]) + ")"
-        )
+        self._control_table: List[Replacement] = control_table
+        self._normalization: Optional[str] = normalization
 
     @staticmethod
     def _remove_character_support(string: str, normalization_method: Optional[str]) -> str:
@@ -108,68 +140,48 @@ class Translator:
                 method=normalization_method
             )
 
-    def __len__(self):
-        return len(self._known_chars)
-
     def __eq__(self, other):
-        return isinstance(other, Translator) and \
-               other.known_chars == self.known_chars \
-               and other.control_table == self.control_table
-
-    @staticmethod
-    def _escape(string: str):
-        """ Escapes or not a string that is present in the control table. Strings starting with #r# are not escaped
-
-        >>> Translator._escape("#r#(a|b)")
-        '(a|b)'
-        >>> Translator._escape("(a|b)") == r'\(a\|b\)'
-        True
-
-        """
-        if string.startswith("#r#"):
-            return string[3:]
-        return re.escape(string)
+        return isinstance(other, Translator) and other.control_table == self.control_table and \
+            other._normalization == self._normalization
 
     @property
-    def control_table(self):
+    def control_table(self) -> List[Replacement]:
         return self._control_table
-
-    @property
-    def known_chars(self):
-        return self._known_chars
-
-    def _sub(self, group: re.Match) -> str:
-        return self._replace_table[group.group(0)]
 
     def translate(
             self,
             line_text: str,
-            normalization_method: Optional[str] = None
+            normalization: Optional[str] = None
     ) -> str:
         """ Apply a normalization dict to a string
 
         :param line_text: A string which you want to normalize according to a conversion table
-        :param normalization_method: Unicode normalization to apply before applying the control_table
+        :param normalization: Unicode normalization to apply before applying the control_table
 
         Simple cases
-        >>> (Translator({"é": "ẽ"})).translate("ábé")
+        >>> Translator([Replacement(char="é",  replacement="ẽ")]).translate("ábé")
         'ábẽ'
-        >>> (Translator({"é": "ẽ"})).translate("ábé", normalization_method="NFD") # This one is normalized
-        'ábé'
-        >>> (Translator({'́': '̃'})).translate("ábé", normalization_method="NFD")
+        >>> Translator([Replacement(char="é",  replacement='ẽ')]).translate("ábé", normalization="NFD")
+        'ábẽ'
+        >>> Translator([Replacement(char='́', replacement='̃')]).translate("ábé", normalization="NFD")
         'ãbẽ'
-        >>> (Translator({'é': 'ẽ'})).translate("ábé", normalization_method="NFD")
+        >>> Translator([Replacement(char='é', replacement='ẽ')]).translate("ábé", normalization="NFD")
         'ábẽ'
 
         "Advanced" cases
-        >>> (Translator({'bé': 'dé', 'é': 'ẽ'})).translate("ábé", normalization_method="NFD")
-        'ádé'
+        This is a change in behaviour where everything is applied
+        >>> Translator([
+        ...     Replacement(char='bé', replacement='dé'),
+        ...     Replacement(char='é', replacement='ẽ')
+        ... ]).translate("ábé", normalization="NFD")
+        'ádẽ'
 
         """
-        return self._control_table_re.sub(
-            self._sub,
-            normalize(line_text, normalization_method)
-        )
+        if normalization:
+            line_text = unicodedata.normalize(normalization, line_text)
+        for repl in self.control_table:
+            line_text = repl.replaces(line_text)
+        return line_text
 
     def set(self):
         """ Get the set of control table keys
@@ -179,37 +191,57 @@ class Translator:
         """
         return set(self._control_table.keys())
 
-    def get_unknown_chars(self, line: str, normalization_method: Optional[str] = None) -> Set:
+    def get_unknown_chars(self, line: str, normalization: Optional[str] = None) -> Set:
         """ Checks a line to see
 
         Simple cases
-        >>> (Translator({"é": "ẽ"})).get_unknown_chars("ábé") == set("áb")
+        >>> Translator([Replacement(char="é", replacement="ẽ")]).get_unknown_chars("ábé") == {'á', 'b'}
         True
-        >>> (Translator({"é": "ẽ"})).get_unknown_chars("ábé", normalization_method="NFD") == set("abé")
+        >>> Translator([
+        ... Replacement(char="é", replacement="ẽ")
+        ... ]).get_unknown_chars("ábé", normalization="NFD") == {'a', 'b', 'e', '́'}
         True
-        >>> (Translator({'́': '̃'})).get_unknown_chars("ábé", normalization_method="NFD") == set("abe")
+        >>> Translator([Replacement(char='́', replacement='̃')]
+        ... ).get_unknown_chars("ábé", normalization="NFD") == set("abe")
         True
-        >>> (Translator({'é': 'ẽ'})).get_unknown_chars("ábé", normalization_method="NFD") == set("áb")
+        >>> Translator([
+        ... Replacement(char='é', replacement='ẽ')]).get_unknown_chars("ábé", normalization="NFD") == set("áb")
         True
 
         "Advanced" cases
-        >>> (Translator({'bé': 'dé', 'é': 'ẽ'})).get_unknown_chars("ábé", normalization_method="NFD") == set("á")
+        >>> Translator([
+        ... Replacement(char='bé', replacement='dé'), Replacement(char='é', replacement='ẽ')
+        ... ]).get_unknown_chars("ábé", normalization="NFD") == set("á")
         True
-        >>> (Translator({'f': 'f'}, {"a", "b", '́'})).get_unknown_chars("ábé", normalization_method="NFD") == set("e")
+        >>> Translator([
+        ... Replacement(char='f', replacement='f'),
+        ... Replacement(char="a", replacement="a"),
+        ... Replacement(char="b", replacement="b"),
+        ... Replacement(char='́', replacement='́')
+        ... ]).get_unknown_chars("ábé", normalization="NFD") == set("e")
         True
-        >>> (Translator({'e': 'e'}, {"a", "b", '́'})).get_unknown_chars("ábé", normalization_method="NFD") == set()
+        >>> Translator([
+        ... Replacement(char='e', replacement='e'),
+        ... Replacement(char="a", replacement="a"),
+        ... Replacement(char="b", replacement="b"),
+        ... Replacement(char='́', replacement='́')
+        ... ]).get_unknown_chars("ábé", normalization="NFD") == set()
         True
-        >>> (Translator({'e': 'e'}, {"#r#[a-z]"})).get_unknown_chars("abcdef", normalization_method="NFD") == set()
+        >>> Translator([
+        ...     Replacement('e', 'e'), Replacement("[a-z]", "\1", regex=True)
+        ... ]).get_unknown_chars("abcdef", normalization="NFD") == set()
         True
-        >>> (Translator({'#r#[a-z]': 'e'}, {"1"})).get_unknown_chars("abcdef1", normalization_method="NFD") == set()
+        >>> Translator([
+        ...     Replacement('[a-z]', 'e', regex=True),
+        ...     Replacement("1", "1")
+        ... ]).get_unknown_chars("abcdef1", normalization="NFD") == set()
         True
         """
-        return set(
-            self._known_chars_re.sub(
-                "",
-                normalize(line, method=normalization_method)
-            )
-        )
+        line = normalize(line, method=normalization)
+        for repl in self.control_table:
+            line = repl.removes(line)
+        return set(line)
+
 
     def get_known_chars(
             self,
@@ -272,69 +304,36 @@ class Translator:
     def parse(
         cls,
         table_file: str,
-        normalization_method: Optional[str] = None
+        normalization: Optional[str] = None
     ) -> "Translator":
-        """ Parse a character translation table
+        """ Parse a character translation table from a CSV
 
-        >>> Translator.parse("tests/test_controltable/simple.csv") == Translator({}, set("012"))
-        True
-        >>> Translator.parse(
-        ... "tests/test_controltable/simple.csv", normalization_method="NFD") == Translator({}, set("012"))
-        True
-        >>> Translator.parse(
-        ... "tests/test_controltable/nfd.csv", normalization_method="NFD").control_table
-        {'᷒᷒': 'ꝰ', 'ẻ': 'e̾'}
-        >>> Translator.parse(
-        ... "tests/test_controltable/nfd.csv", normalization_method="NFD") == Translator(
-        ... {'᷒᷒': 'ꝰ', 'ẻ': 'e̾'}, {'᷒᷒', 'ꝯ', 'ẻ', 'ꝰ'})
-        True
         """
-        chars = {}
-        known_chars = []
+        chars: List[Replacement] = []
 
         for line in cls.get_csv(table_file):
-            line = {
-                cls._remove_character_support(key, normalization_method): cls._remove_character_support(
-                    val, normalization_method)
-                for key, val in line.items()
-            }
-            # Append to the dict only differences between char and normalized
-            if line["char"] != line["replacement"]:
-                chars[line["char"]] = line["replacement"]
-            known_chars.append(line["char"])
-        return Translator(chars, known_chars=known_chars)
+            try:
+                chars.append(
+                    Replacement(
+                        char=Replacement.normalized(line["char"], normalization=normalization),
+                        replacement=Replacement.normalized(line["replacement"], normalization=normalization),
+                        regex=(True if line.get("regex", "").lower() == "true" else False),
+                        record=line
+                    )
+                )
+            except Exception as E:
+                print(f"Following value is incorrect")
+                print(line)
+                raise E
+        return Translator(chars, normalization=normalization)
 
     @staticmethod
-    def get_csv(table_file: str):
+    def get_csv(table_file: str) -> Iterable[Dict[str, str]]:
         """ Get a list of row as dict
 
         """
         with open(table_file) as f:
             yield from csv.DictReader(f)
-
-    @staticmethod
-    def _replace_regexp(string: str) -> str:
-        """ Replace regexp for the group finder
-
-        >>> Translator._replace_regexp("#r#l'")
-        "l'"
-        >>> Translator._replace_regexp("#r#\u0035")
-        '5'
-        >>> Translator._replace_regexp("ab")
-        'ab'
-        >>> Translator._replace_regexp("#r#\p{Greek}") == r"\p{Greek}"
-        True
-        """
-        if string.startswith("#r#"):
-            if len(string) > 3:
-                string = string[3:]
-                if string.startswith("\\u"):
-                    return str(chr(int(string.replace("\\u", ""), 16)))
-                elif re.match(r"\\p", string):
-                    return string
-                return string
-            return ""
-        return string
 
 
 def check_file(

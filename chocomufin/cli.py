@@ -1,7 +1,7 @@
 import logging
 import random
 import sys
-from typing import Iterable, ClassVar, List
+from typing import Iterable, ClassVar, List, Tuple
 from collections import defaultdict
 
 import tabulate
