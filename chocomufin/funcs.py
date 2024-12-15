@@ -120,6 +120,9 @@ class Translator:
         self._control_table: List[Replacement] = control_table
         self._normalization: Optional[str] = normalization
 
+    def __len__(self):
+        return len(self.control_table)
+
     @staticmethod
     def _remove_character_support(string: str, normalization_method: Optional[str]) -> str:
         """ Remove the support character for combining characters
@@ -187,14 +190,6 @@ class Translator:
             line_text = repl.replaces(line_text)
         return line_text
 
-    def set(self):
-        """ Get the set of control table keys
-
-        >>> (Translator({"a": "b", "c": "d"})).set() == {"a", "c"}
-        True
-        """
-        return set(self._control_table.keys())
-
     def get_unknown_chars(self, line: str, normalization: Optional[str] = None) -> Set:
         """ Checks a line to see
 
@@ -202,33 +197,35 @@ class Translator:
         >>> Translator([Replacement(char="é", replacement="ẽ")]).get_unknown_chars("ábé") == {'á', 'b'}
         True
         >>> Translator([
-        ... Replacement(char="é", replacement="ẽ")
+        ...     Replacement(char="é", replacement="ẽ")
         ... ]).get_unknown_chars("ábé", normalization="NFD") == {'a', 'b', 'e', '́'}
         True
-        >>> Translator([Replacement(char='́', replacement='̃')]
-        ... ).get_unknown_chars("ábé", normalization="NFD") == set("abe")
+        >>> Translator([
+        ...     Replacement(char='́', replacement='̃')
+        ... ]).get_unknown_chars("ábé", normalization="NFD") == set("abe")
         True
         >>> Translator([
-        ... Replacement(char='é', replacement='ẽ')]).get_unknown_chars("ábé", normalization="NFD") == set("áb")
+        ...     Replacement(char='é', replacement='ẽ')
+        ... ]).get_unknown_chars("ábé", normalization="NFD") == set("áb")
         True
 
         "Advanced" cases
         >>> Translator([
-        ... Replacement(char='bé', replacement='dé'), Replacement(char='é', replacement='ẽ')
+        ...     Replacement(char='bé', replacement='dé'), Replacement(char='é', replacement='ẽ')
         ... ]).get_unknown_chars("ábé", normalization="NFD") == set("á")
         True
         >>> Translator([
-        ... Replacement(char='f', replacement='f'),
-        ... Replacement(char="a", replacement="a"),
-        ... Replacement(char="b", replacement="b"),
-        ... Replacement(char='́', replacement='́')
+        ...     Replacement(char='f', replacement='f'),
+        ...     Replacement(char="a", replacement="a"),
+        ...     Replacement(char="b", replacement="b"),
+        ...     Replacement(char='́', replacement='́')
         ... ]).get_unknown_chars("ábé", normalization="NFD") == set("e")
         True
         >>> Translator([
-        ... Replacement(char='e', replacement='e'),
-        ... Replacement(char="a", replacement="a"),
-        ... Replacement(char="b", replacement="b"),
-        ... Replacement(char='́', replacement='́')
+        ...     Replacement(char='e', replacement='e'),
+        ...     Replacement(char="a", replacement="a"),
+        ...     Replacement(char="b", replacement="b"),
+        ...     Replacement(char='́', replacement='́')
         ... ]).get_unknown_chars("ábé", normalization="NFD") == set()
         True
         >>> Translator([
@@ -254,8 +251,6 @@ class Translator:
             normalization: Optional[str] = None,
             ignore: Set[str] = None) -> Set[str]:
         """ Checks a line to see all characters or input that are known
-
-        ToDo: Find a more efficient way to do this ?
 
         Simple cases
         >>> Translator([Replacement("é", "ẽ")]).get_known_chars("ábé") == {"é"}
@@ -320,14 +315,20 @@ class Translator:
 
         for line in cls.get_csv(table_file):
             try:
-                chars.append(
-                    Replacement(
-                        char=Replacement.normalized(line["char"], normalization=normalization),
-                        replacement=Replacement.normalized(line["replacement"], normalization=normalization),
-                        regex=(True if line.get("regex", "").lower() == "true" else False),
-                        record=line
-                    )
-                )
+                char = Replacement.normalized(line["char"], normalization=normalization)
+                replacement = Replacement.normalized(line["replacement"], normalization=normalization)
+                regex = False
+                if line.get("regex", "").lower() == "true":
+                    regex = True
+                elif char.startswith("#r#"):
+                    char = char[3:]
+                    regex = True
+                    if replacement[:3] == "#r#":
+                        replacement = replacement[3:]
+                    print(char, regex, replacement)
+
+                chars.append(Replacement(char=char, replacement=replacement,regex=regex, record=line))
+
             except Exception as E:
                 print(f"Following value is incorrect")
                 print(line)
@@ -472,7 +473,7 @@ def update_table(
     dest: Optional[str] = None
 ):
     prior: Dict[str, Dict[str, str]] = {}
-    translator = Translator({})
+    translator = Translator([])
     if parser == "alto":
         parser = Alto
 
