@@ -1,0 +1,23 @@
+char,name,replacement,order
+#r#l’,LATIN SMALL LETTER L WITH STROKE,ł,0
+#r#s̵,S STROKE TO Single letter,ẜ,
+[[,Squares,⟦,0
+]],Squares,⟧,0
+V,LATIN CAPITAL LETTER V,U,0
+v,LATIN SMALL LETTER V,u,0
+J,LATIN CAPITAL LETTER J,I,0
+j,LATIN SMALL LETTER J,i,0
+ᵛ,LATIN SUPERSCRIPT NON COMBINING V,ᵘ,0
+ʲ,LATIN SUPERSCRIPT NON COMBINING V,ⁱ,0
+#r#\u036E,Combining V,\u0367,0
+#r#\uF030,Combining J,\u0365,0
+#r#[0-9],All arabic digits,#r#[0-9],0
+#r#[a-ik-uw-zA-IK-UW-Z],All Latin letters (caps inc.),#r#[a-ik-uw-zA-IK-UW-Z],
+#r#[\u0363-\u036D\u036F\u1DDA\u1DDC\u1DDD\u1DE0\u1DE4\u1DE6\u1DE8\u1DEB\u1DEE\u1DF1\uF02B\uF030\uF033],All combining latin letter except u/j,#r#[\u0363-\u036D\u036F\u1DDA\u1DDC\u1DDD\u1DE0\u1DE4\u1DE6\u1DE8\u1DEB\u1DEE\u1DF1\uF02B\uF030\uF033],
+#r#[ᵃᵇᶜᵈᵉᶠᵍʰⁱᵏˡᵐⁿᵒᵖ𐞥ʳˢᵗᵘʷˣʸᶻ⁰¹²³⁴⁵⁶⁷⁸⁹],All superscript non combining Latin letters,#r#[ᵃᵇᶜᵈᵉᶠᵍʰⁱᵏˡᵐⁿᵒᵖ𐞥ʳˢᵗᵘʷˣʸᶻ⁰¹²³⁴⁵⁶⁷⁸⁹],
+⟦,MATHEMATICAL LEFT WHITE SQUARE BRACKET,⟦,0
+⟧,MATHEMATICAL RIGHT WHITE SQUARE BRACKET,⟧,0
+#r#[ꝭꝵ᷑ꝰ̶̧̇ꝯ÷⁊ħłꝈØꝓꝒꝑꝐꝙꝘꝗẜđ&♡℥𐆒],Base medieval abbreviation,#r#[ꝭꝵ᷑ꝰ̶̧̇ꝯ÷⁊ħłꝈØꝓꝒꝑꝐꝙꝘꝗẜđ&♡℥𐆒],
+#r#[./:⟦⟧‸\-],Allowed ponctuation,#r#[./:⟦⟧‸\-],
+#r#[\u0303\u033E],Allowed Tildes,#r#[\u0303\u033E],
+;,SEMI-COLON,:,
