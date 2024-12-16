@@ -492,7 +492,7 @@ def get_files_unknown_and_known(
         instance: Parser,
         translator: Translator,
         normalization: Optional[str] = None
-) -> Tuple[Set[str], Set[str]]:
+) -> Tuple[Set[str], Set[Replacement]]:
     """ Retrieves unknown and known characters from an instance
 
     """
@@ -524,14 +524,16 @@ def update_table(
         normalization: Optional[str] = None,
         dest: Optional[str] = None
 ):
-    prior: Dict[str, Dict[str, str]] = {}
+    prior: Dict[Replacement, None] = {}
     translator = Translator([])
     if parser == "alto":
         parser = Alto
 
+    keys = {"char", "replacement", "regex", "allow"}
+
     if table_file and os.path.exists(table_file) and mode != "reset":
-        prior = {row["char"]: row for row in (Translator.get_csv(table_file))}
         translator = Translator.parse(table_file, normalization=normalization)
+        prior = {repl: None for repl in translator.control_table}
         if echo:
             click.echo(click.style(f"Loading previous table at path `{table_file}`", fg="yellow"))
             click.echo(click.style(f"{len(translator)} characters found in the original table", fg="green"))
@@ -552,14 +554,11 @@ def update_table(
     used = set()
     for file in decoration(files):
         instance = parser(file)
-        inst_unknown, used_unknown = get_files_unknown_and_known(instance, translator, normalization)
+        inst_unknown, inst_known = get_files_unknown_and_known(instance, translator, normalization)
         unknown = unknown.union(inst_unknown)
-        used = used.union(used_unknown)
+        used = used.union(inst_known)
 
-    # Content is a list of
-    #    with at least char, mufidecode, codepoint and name as keys
-    content: List[Dict[str, str]] = []
-    found = set()
+    content: List[Replacement] = []
 
     for unknown_char in unknown:
         # If we get an UNKNOWN_CHAR, we check if this can be normalized with uni/mufidecode
@@ -570,69 +569,79 @@ def update_table(
                     f" (Unicode Hex Code Point: {get_hex(unknown_char)})")
             mufi_char = "[UNKNOWN]"
 
-        cdict = {
-            "char": unknown_char,
-            "mufidecode": mufi_char,
-            "codepoint": get_hex(unknown_char)
-        }
-
         try:
-            cdict["name"] = get_character_name(unknown_char)
+            name = get_character_name(unknown_char)
         except CharacterUnknown:
             warning(f"Character `{unknown_char}` has an unknown name"
                     f" (Unicode Hex Code Point: {get_hex(unknown_char)})")
-            cdict["name"] = "[UNKNOWN-NAME]"
+            name = "[UNKNOWN-NAME]"
 
-        if unknown_char in prior:
-            found.add(unknown_char)
-            continue
-        content.append(cdict)
+        unknown_repl = Replacement(unknown_char, "", _allow=True, regex=False,
+                                   record={
+                                       key: value for key, value in {
+                                           "mufidecode": mufi_char,
+                                           "codepoint": get_hex(unknown_char),
+                                           "name": name
+                                       }.items()
+                                       if key in keys
+                                   })
+
+        if unknown_repl not in prior:
+            content.append(unknown_repl)
 
     # ToDo: if a character is not in the XML set but in the table.csv, should we keep it in the table.csv ?
+    # ToDo: rework from here
     if prior:
-        content = sorted(content, key=lambda x: x.get("char"))
+        content = sorted(content, key=lambda x: x.char)
         if mode == "keep":
-            content = list(prior.values()) + content
+            content = list(prior.keys()) + content
             if echo:
-                click.echo(click.style(f"Characters kept with keep mode and found"
-                                       f": `{', '.join(sorted(list(set(prior.keys()).intersection(found))))}`",
-                                       fg="yellow")
-                           )
-                click.echo(click.style(f"Characters kept with keep mode but not found"
-                                       f": `{', '.join(sorted(list(set(prior.keys()).difference(found))))}`",
-                                       fg="yellow")
-                           )
+                click.echo(click.style(
+                    f"Characters kept with keep mode and found"
+                    f": `{', '.join(sorted([r.char for r in used]))}`",
+                    fg="yellow")
+                )
+                click.echo(click.style(
+                    f"Characters kept with keep mode and found"
+                    f": `{', '.join(sorted([r.char for r in set(prior.keys()).difference(set(content))]))}`",
+                    fg="yellow")
+                )
         elif mode == "cleanup":
-            removed = []
-            cleanupcontent = []
+            removed: List[Replacement] = []
+            cleanupcontent: List[Replacement] = []
             for character in prior:
-                if character in used or character in found:
-                    cleanupcontent.append(prior[character])
+                if character in used:
+                    cleanupcontent.append(character)
                 else:
-                    removed.append(prior[character])
+                    removed.append(character)
             if echo:
                 if prior:
-                    click.echo(click.style("Characters kept because they were used: {}".format(
-                        ', '.join([f"`{k}`" for k in sorted(list(used))])
-                    ), fg="yellow"))
+                    click.echo(click.style(
+                        "Characters kept because they were used: {}".format(
+                            ', '.join([f"`{k.char}`" for k in used])
+                        ),
+                        fg="yellow"
+                    ))
                 if removed:
                     click.echo(click.style("Replacement removed because they were not used", fg="red"))
-                    click.echo(tabulate.tabulate(removed, showindex=True, headers="keys", tablefmt="pipe"))
+                    click.echo(tabulate.tabulate(
+                        [k.as_dict() for k in removed], showindex=True, headers="keys", tablefmt="pipe"
+                    ))
             content = cleanupcontent + content
-    base_field_names = ["char", "name", "replacement", "codepoint", "mufidecode"]
-    previous_field_names = set([
-        key
-        for row in content
-        for key in row.keys()
-    ]).difference(set(base_field_names))
+
+    prior_order = list(prior.keys())
+
     out_file = table_file
     if dest:
         out_file = dest
     with open(out_file, "w") as out_file:
         w = csv.DictWriter(
             out_file,
-            fieldnames=["char", "name", "replacement", "codepoint", "mufidecode"] + sorted(list(previous_field_names))
+            fieldnames=list(keys)
         )
         w.writeheader()
-        w.writerows(content)
+        w.writerows(sorted(
+            [c.as_dict() for c in content],
+            key=lambda x: prior_order.index(x) if x in prior else x.char
+        ))
     return content
