@@ -18,32 +18,50 @@ The workflow is generally the following: you generate a conversion table (`choco
 use this table to either control (`chocomufin control table.csv your-files.xml`) or convert them (`chocomufin convert table.csv your-files.xml`).
 Conversion will automatically add a suffix which you can define with `--suffix`.
 
-## Example table of conversion
+## Table of conversion
 
+### Syntax
+
+A conversion table MUST contain at least a `char` and a `replacement` column, SHOULD 
+contain a `regex` and `allow` column (with either `true` or empty values), and MAY contain any additional column.
+
+The columns have the following effect:
+
+- `char` is used to match a value in the XML or the text.
+- `replacement` is used to replace what was found in char. 
+- `regex`, if `true`, means `char` and `replacement` should be parsed as regex.
+- `allow`, if `true`, will indicate that replacement should be ignored, and that the value(s) in `char` are valid.
+
+Any other column should be seen as a comment.
+
+### Example
+
+In the following table:
 
 ```csv
-char,name,replacement,codepoint,mufidecode
-ī,LATIN SMALL LETTER I WITH MACRON,ĩ,012B,i
-ı,LATIN SMALL LETTER DOTLESS I,i,0131,i
-ﬀ,LATIN SMALL LIGATURE FF,ff,FB00,ff
-A,LATIN CAPITAL LETTER A,A,0041,A
-B,LATIN CAPITAL LETTER B,B,0042,B
-C,LATIN CAPITAL LETTER C,C,0043,C
-D,LATIN CAPITAL LETTER D,D,0044,D
+lineno,char,replacement,regex,allow
+1,V,U,,
+2,[a-ik-uw-zA-IK-UW-Z],,true,true
+3,(\S)(\.)(\S),\g<0>\g<1> \g<2>,true,
+4,_,,,true
 ```
+
+- Line no. 1 will replace any V into a U;
+- Line no. 2 will allow any character in the range defined: those characters won't be replaced and will be accepted as is.
+- Line no. 3 will replace any dot without spaces around it with a regex replacement groups used in the regex.
+- Line no. 4 will allow `_` in the text, and not replace it with anything.
 
 As table:
 
-| char | name                             | replacement | codepoint | mufidecode |
-|------|----------------------------------|-------------|-----------|------------|
-| ī    | LATIN SMALL LETTER I WITH MACRON | ĩ           | 012B      | i          |
-| ı    | LATIN SMALL LETTER DOTLESS I     | i           | 0131      | i          |
-| ﬀ    | LATIN SMALL LIGATURE FF          | ff          | FB00      | ff         |
-| A    | LATIN CAPITAL LETTER A           | A           | 0041      | A          |
-| B    | LATIN CAPITAL LETTER B           | B           | 0042      | B          |
-| C    | LATIN CAPITAL LETTER C           | C           | 0043      | C          |
-| D    | LATIN CAPITAL LETTER D           | D           | 0044      | D          |
+| lineno | char                 | replacement      | regex | allow |
+|--------|----------------------|------------------|-------|-------|
+| 1      | V                    | U                |       |       |
+| 2      | [a-ik-uw-zA-IK-UW-Z] |                  | true  | true  |
+| 3      | (\S)(\.)(\S)         | \g<1>\g<2> \g<3> | true  |       |
+| 4      | _                    |                  |       | true  |
 
+In this context, `lineno` is not used at all by chocomufin, but serves as a documentation tool. It would 
+not break chocomufin.
 
 ## Github Action Template 
 
