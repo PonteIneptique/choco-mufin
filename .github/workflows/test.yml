@@ -18,6 +18,7 @@ jobs:
       run: |
         python -m pip install --upgrade pip pytest pytest-cov
         python setup.py develop
+        pip install pytest pytest-cov
     - name: Test with pytest
       run: |
         pytest --doctest-modules --cov=chocomufin --verbose

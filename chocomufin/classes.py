@@ -133,7 +133,7 @@ class Replacement:
         'abba'
         >>> Replacement("[a-z]", r"\g<0>", regex=True).replaces("abbaZ")
         'abbaZ'
-        >>> Replacement("(\S)([\.;:])(\S)", "\g<1>\g<2> \g<3>", regex=True).replaces("Fin de phrase.pas d'espace")
+        >>> Replacement(r"(\S)([\.;:])(\S)", r"\g<1>\g<2> \g<3>", regex=True).replaces("Fin de phrase.pas d'espace")
         "Fin de phrase. pas d'espace"
         """
         if self.allow:
