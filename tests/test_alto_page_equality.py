@@ -2,7 +2,8 @@ import os.path
 from unittest import TestCase
 from click.testing import CliRunner
 
-from chocomufin.funcs import Translator, convert_file, _test_helper, get_files_unknown_and_known
+from chocomufin.classes import Translator, Replacement
+from chocomufin.functions import convert_file, _test_helper, get_files_unknown_and_known
 from chocomufin.parsers import Alto, Page
 
 
@@ -51,13 +52,23 @@ class AltoTestCase(TestCase):
             "NFD"
         )
         
-        self.assertCountEqual(kno, {'ẏ', '#r#[a-zA-Z]'}, "Y+DOT above should be known, even in NFD")
+        self.assertCountEqual(
+            kno,
+            {
+                Replacement(char='ẏ', replacement='y', _allow=False, regex=False,
+                            record={'char': 'ẏ', 'name': 'LATIN SMALL LETTER Y WITH DIAERESIS', 'replacement': 'y',
+                                    'ontographe': 'y', 'regex': ''}),
+                Replacement(char='[a-zA-Z]', replacement='', _allow=True, regex=True,
+                            record={'char': '[a-zA-Z]', 'name': 'All letters', 'replacement': '', 'regex': 'true',
+                                    'ontographe': ''})
+            },
+            "Y+DOT above should be known, even in NFD")
         self.assertCountEqual(unk, set(), "Y+DOT above should be known, even in NFD")
 
         instance = convert_file(
             self.getFile("y_dot_above.xml"),
             translator=translator,
-            normalization_method="NFD",
+            normalization="NFD",
             parser=self._parser
         )
         self.assertEqual(_test_helper(instance, 0), "son enuers dyagolus le bas", "Conversion works well")
@@ -74,13 +85,24 @@ class AltoTestCase(TestCase):
             translator,
             "NFD"
         )
-        self.assertCountEqual(kno, {'#r#[a-zA-Z]', 'ͥ'}, "The original stripped char should be visible")
+        self.assertCountEqual(
+            kno,
+            {
+                Replacement(char='[a-zA-Z]', replacement='', _allow=True, regex=True,
+                            record={'char': '[a-zA-Z]', 'name': 'All letters', 'replacement': '', 'ontographe': '',
+                                    'regex': 'true', '': None}),
+                Replacement(char='ͥ', replacement='ͨ', _allow=False, regex=False,
+                            record={'char': '◌ͥ', 'name': 'COMBINING US ABOVE', 'replacement': '◌ͨ',
+                                    'ontographe': 'con', 'regex': '', '': None})
+            },
+            "The original stripped char should be visible"
+        )
         self.assertCountEqual(unk, {"ꝑ", ".", "'"}, "Y+DOT above should be known, even in NFD")
 
         instance = convert_file(
             self.getFile("support_combining_char.xml"),
             translator=translator,
-            normalization_method="NFD",
+            normalization="NFD",
             parser=self._parser
         )
         self.assertEqual(_test_helper(instance, 0), "qͨ les oi ꝑler", "Conversion works well")

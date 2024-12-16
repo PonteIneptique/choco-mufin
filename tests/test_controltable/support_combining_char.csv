@@ -1,4 +1,4 @@
-char,name,replacement,ontographe
-ẏ,LATIN SMALL LETTER Y WITH DIAERESIS,y,y
-#r#[a-zA-Z],All letters,#r#[a-zA-Z],
-◌ͥ,COMBINING US ABOVE,◌ͨ,con
+char,name,replacement,ontographe,regex,
+ẏ,LATIN SMALL LETTER Y WITH DIAERESIS,y,y,
+[a-zA-Z],All letters,[a-zA-Z],,true
+◌ͥ,COMBINING US ABOVE,◌ͨ,con,

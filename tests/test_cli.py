@@ -52,16 +52,14 @@ def test_chocomufin_generate_keep(temp_dir_with_fixtures):
         f.seek(0)
         rows = list(csv.DictReader(f))
 
-        assert rows[0] == {'char': '#r#l’', 'name': 'LATIN SMALL LETTER L WITH STROKE', 'replacement': 'ł',
-                           'codepoint': '', 'mufidecode': '', 'order': '0'}, \
+        assert rows[0] == {'char': 'l’', 'replacement': 'ł', 'name': 'LATIN SMALL LETTER L WITH STROKE',
+                           'order': '0', 'regex': 'true', 'allow': ''}, \
             "First row should be the old same row"
 
         assert rows[-3:] == [
-            {'char': ';', 'name': 'SEMICOLON', 'replacement': '', 'codepoint': '003B', 'mufidecode': ';', 'order': ''},
-            {'char': '̃', 'name': 'COMBINING TILDE', 'replacement': '', 'codepoint': '0303', 'mufidecode': '',
-             'order': ''},
-            {'char': '̾', 'name': 'COMBINING VERTICAL TILDE', 'replacement': '', 'codepoint': '033E', 'mufidecode': '',
-             'order': ''}
+            {'char': ';', 'name': 'SEMICOLON', 'replacement': '', 'regex': '', 'order': '', 'allow': 'true'},
+            {'char': '̃', 'name': 'COMBINING TILDE', 'replacement': '',  'regex': '', 'order': '', 'allow': 'true'},
+            {'char': '̾', 'name': 'COMBINING VERTICAL TILDE', 'replacement': '',  'regex': '', 'order': '', 'allow': 'true'}
         ]
 
 
@@ -93,15 +91,16 @@ def test_chocomufin_generate_cleanup(temp_dir_with_fixtures):
         # Add specific content checks here if necessary
         f.seek(0)
         rows = list(csv.DictReader(f))
-        assert [row["char"] for row in rows] == [
-            'V',
-            '#r#[a-ik-uw-zA-IK-UW-Z]',
-            '#r#[\\u0363-\\u036D\\u036F\\u1DDA\\u1DDC\\u1DDD\\u1DE0\\u1DE4\\u1DE6\\u1DE8\\u1DEB\\u1DEE\\u1DF1\\uF02B\\uF030\\uF033]',
-            '#r#[ᵃᵇᶜᵈᵉᶠᵍʰⁱᵏˡᵐⁿᵒᵖ\U000107a5ʳˢᵗᵘʷˣʸᶻ⁰¹²³⁴⁵⁶⁷⁸⁹]',
-            '#r#[./:⟦⟧‸\\-]',
-            ';',
-            '̃',
-            '̾'
+        assert [(row["char"], row["regex"], row["allow"], row["replacement"]) for row in rows] == [
+            ('V', "", "", "U"),
+            ('[a-ik-uw-zA-IK-UW-Z]', "true", "true", ""),
+            ('[\\u0363-\\u036D\\u036F\\u1DDA\\u1DDC\\u1DDD\\u1DE0\\u1DE4\\u1DE6\\u1DE8\\u1DEB\\u1DEE\\u1DF1\\uF02B\\uF030\\uF033]', "true", "true", ""),
+            ('[ᵃᵇᶜᵈᵉᶠᵍʰⁱᵏˡᵐⁿᵒᵖ\U000107a5ʳˢᵗᵘʷˣʸᶻ⁰¹²³⁴⁵⁶⁷⁸⁹]', "true", "true", ""),
+            ('[\uf1acꝭꝵ᷑ꝰ̶̧̇ꝯ÷⁊ħłꝈØꝓꝒꝑꝐꝙꝘꝗẜđ&♡℥𐆒]', 'true', 'true', ''),
+            ('[./:⟦⟧‸\\-]', "true", "true", ""),
+            (';', "", "true", ""),
+            ('̃', "", "true", ""),
+            ('̾', "", "true", "")
         ], "Characters should be reset"
 
 
