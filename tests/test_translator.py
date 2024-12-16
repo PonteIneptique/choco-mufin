@@ -1,7 +1,7 @@
 import os.path
 
 from unittest import TestCase
-from chocomufin.funcs import Translator, convert_file, _test_helper, get_files_unknown_and_known
+from chocomufin.funcs import Translator, convert_file, _test_helper, get_files_unknown_and_known, Replacement
 from chocomufin.parsers import Alto
 
 
@@ -20,7 +20,18 @@ class TestRegressionTranslator(TestCase):
             translator,
             "NFD"
         )
-        self.assertCountEqual(kno, {'ẏ', '[a-zA-Z]'}, "Y+DOT above should be known, even in NFD")
+        self.assertCountEqual(
+            kno,
+            {
+                Replacement(char='ẏ', replacement='y', _allow=False, regex=False,
+                            record={'char': 'ẏ', 'name': 'LATIN SMALL LETTER Y WITH DIAERESIS', 'replacement': 'y',
+                                    'ontographe': 'y', 'regex': ''}),
+                Replacement(char='[a-zA-Z]', replacement='', _allow=True, regex=True,
+                            record={'char': '[a-zA-Z]', 'name': 'All letters', 'replacement': '', 'regex': 'true',
+                                    'ontographe': ''})
+            },
+            "Y+DOT above should be known, even in NFD"
+        )
         self.assertCountEqual(unk, set(), "Y+DOT above should be known, even in NFD")
 
         instance = convert_file(
@@ -41,7 +52,81 @@ class TestRegressionTranslator(TestCase):
             translator,
             "NFD"
         )
-        self.assertCountEqual(kno, {'[a-zA-Z]', 'ͥ'}, "The original stripped char should be visible")
+        self.assertCountEqual(
+            kno,
+            {
+                Replacement(char='[a-zA-Z]', replacement='', _allow=True, regex=True,
+                            record={'char': '[a-zA-Z]', 'name': 'All letters', 'replacement': '', 'ontographe': '',
+                                    'regex': 'true', '': None}),
+                Replacement(char='ͥ', replacement='ͨ', _allow=False, regex=False,
+                            record={'char': '◌ͥ', 'name': 'COMBINING US ABOVE', 'replacement': '◌ͨ',
+                                    'ontographe': 'con', 'regex': '', '': None})
+            },
+            "The original stripped char should be visible"
+        )
+        self.assertCountEqual(unk, {"ꝑ", ".", "'"}, "Y+DOT above should be known, even in NFD")
+
+        instance = convert_file(
+            self._get_file("test_data/support_combining_char.xml"),
+            translator=translator,
+            normalization="NFD"
+        )
+        self.assertEqual(_test_helper(instance, 0), "qͨ les oi ꝑler", "Conversion works well")
+
+    def test_regex(self):
+        """ Test that when finding something like ◌ͨ ChocoMufin ignores the ◌ char."""
+        translator = Translator.parse(
+            self._get_file("test_controltable/regex.csv"),
+            "NFD"
+        )
+        unk, kno = get_files_unknown_and_known(
+            Alto(self._get_file("test_data/support_combining_char.xml")),
+            translator,
+            "NFD"
+        )
+        self.assertCountEqual(
+            kno,
+            {
+                Replacement(char='ͥ', replacement='ͨ', _allow=False, regex=False,
+                            record={'char': '◌ͥ', 'name': 'COMBINING US ABOVE', 'replacement': '◌ͨ', 'regex': ''}),
+                Replacement(char='[a-zA-Z]', replacement='\g<0>', _allow=False, regex=True,
+                            record={'char': '[a-zA-Z]', 'name': 'All letters', 'replacement': '\\g<0>',
+                                    'regex': 'true'})
+            },
+            "The original stripped char should be visible"
+        )
+        self.assertCountEqual(unk, {"ꝑ", ".", "'"}, "Y+DOT above should be known, even in NFD")
+
+        instance = convert_file(
+            self._get_file("test_data/support_combining_char.xml"),
+            translator=translator,
+            normalization="NFD"
+        )
+        self.assertEqual(_test_helper(instance, 0), "qͨ les oi ꝑler", "Conversion works well")
+
+    def test_allow(self):
+        """ Test that when finding something like ◌ͨ ChocoMufin ignores the ◌ char."""
+        translator = Translator.parse(
+            self._get_file("test_controltable/allow.csv"),
+            "NFD"
+        )
+        unk, kno = get_files_unknown_and_known(
+            Alto(self._get_file("test_data/support_combining_char.xml")),
+            translator,
+            "NFD"
+        )
+        self.assertCountEqual(
+            kno,
+            {
+                Replacement(char='[a-zA-Z]', replacement='', _allow=True, regex=True,
+                            record={'char': '[a-zA-Z]', 'name': 'All letters', 'replacement': '', 'regex': 'true',
+                                    'allow': 'true'}),
+                Replacement(char='ͥ', replacement='ͨ', _allow=False, regex=False,
+                            record={'char': '◌ͥ', 'name': 'COMBINING US ABOVE', 'replacement': '◌ͨ', 'regex': '',
+                                    'allow': ''})
+            },
+            "The original stripped char should be visible"
+        )
         self.assertCountEqual(unk, {"ꝑ", ".", "'"}, "Y+DOT above should be known, even in NFD")
 
         instance = convert_file(

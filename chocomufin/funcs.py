@@ -14,10 +14,8 @@ import mufidecode
 
 from chocomufin.parsers import Parser, Alto
 
-
 with open(os.path.join(os.path.dirname(__file__), "mufi.json")) as mufi_file_io:
     MUFI = json.load(mufi_file_io)
-
 
 _SUB_MUFI_SUPPORT_CHAR = re.compile("◌")
 
@@ -49,13 +47,53 @@ class Replacement:
     char: str
     replacement: Union[str, Callable[[str], str]]
     regex: bool = False
+    _allow: bool = False
     record: Dict[str, Any] = dataclasses.field(default_factory=dict)
 
+    def __hash__(self):
+        return hash(
+            (
+                self.char, self.replacement, self.regex, self._allow,
+                *[
+                    f"<record key='{key}'>{value}</record>"
+                    for key, value in sorted(self.record.items(), key=lambda x: x[0])
+                ]
+            )
+        )
+
+    @property
+    def allow(self):
+        return self._allow or self.char == self.replacement
+
     def __repr__(self):
-        return f"<repl {' '.join([key+'='+value for key, value in self.record.items()])} />"
+        return (f"Replacement("
+                f"char='{self.char}', "
+                f"replacement='{self.replacement}', "
+                f"allow={self.allow}, "
+                f"regex={self.regex}, "
+                f"record={str(self.record)}"
+                f")")
 
     def as_dict(self) -> Dict[str, str]:
-        return self.record
+        """
+
+        >>> Replacement("[a-z]", "[a-z]", record={"char": "#r#[a-z]", "replacement": "#r#[a-z]"}).as_dict() == {
+        ... "char": "[a-z]", "replacement": "", "regex": "true", "allow": "true"}
+        True
+
+        """
+        record = {**self.record}
+
+        if record["char"].startswith("#r#"):
+            record["char"] = self.char
+            record["regex"] = "true"
+            record["replacement"] = self.replacement
+
+        if self.allow:
+            record["allow"] = "true"
+            record["replacement"] = ""
+
+        return record
 
     def is_in(self, string: str) -> bool:
         """ Check whether a string matches a specific replacement
@@ -93,8 +131,12 @@ class Replacement:
         'bbbb'
         >>> Replacement("a", "a").replaces("abba")
         'abba'
+        >>> Replacement("[a-z]", r"\g<0>", regex=True).replaces("abbaZ")
+        'abbaZ'
+        >>> Replacement("(\S)([\.;:])(\S)", "\g<1>\g<2> \g<3>", regex=True).replaces("Fin de phrase.pas d'espace")
+        "Fin de phrase. pas d'espace"
         """
-        if self.char == self.replacement:
+        if self.allow:
             return string
         return re.sub(self._escape(self.char), self.replacement, string)
 
@@ -249,7 +291,7 @@ class Translator:
             self,
             line: str,
             normalization: Optional[str] = None,
-            ignore: Set[str] = None) -> Set[str]:
+            ignore: Set[str] = None) -> Set[Replacement]:
         """ Checks a line to see all characters or input that are known
 
         Simple cases
@@ -298,15 +340,15 @@ class Translator:
         line = normalize(line, method=normalization)
         for repl in self.control_table:
             if repl.is_in(line) and repl.char not in ignore:
-                known_chars.add(repl.char)
+                known_chars.add(repl)
 
         return known_chars
 
     @classmethod
     def parse(
-        cls,
-        table_file: str,
-        normalization: Optional[str] = None
+            cls,
+            table_file: str,
+            normalization: Optional[str] = None
     ) -> "Translator":
         """ Parse a character translation table from a CSV
 
@@ -320,14 +362,20 @@ class Translator:
                 regex = False
                 if line.get("regex", "").lower() == "true":
                     regex = True
+                allow = False
+                if line.get("allow", "").lower() == "true":
+                    allow = True
                 elif char.startswith("#r#"):
                     char = char[3:]
                     regex = True
                     if replacement[:3] == "#r#":
                         replacement = replacement[3:]
-                    print(char, regex, replacement)
+                if char == replacement:
+                    allow = True
+                    replacement = ""
+                    line["replacement"] = ""
 
-                chars.append(Replacement(char=char, replacement=replacement,regex=regex, record=line))
+                chars.append(Replacement(char=char, replacement=replacement, regex=regex, _allow=allow, record=line))
 
             except Exception as E:
                 print(f"Following value is incorrect")
@@ -345,10 +393,10 @@ class Translator:
 
 
 def check_file(
-    file: str,
-    translator: Translator,
-    normalization: Optional[str] = None,
-    parser: ClassVar[Parser] = Alto
+        file: str,
+        translator: Translator,
+        normalization: Optional[str] = None,
+        parser: ClassVar[Parser] = Alto
 ):
     """ Check a file for missing chars in the translation table
 
@@ -386,10 +434,10 @@ def _test_helper(parser: Parser, index: int) -> str:
 
 
 def convert_file(
-    file: str,
-    translator: Translator,
-    normalization: Optional[str] = None,
-    parser: ClassVar[Parser] = Alto
+        file: str,
+        translator: Translator,
+        normalization: Optional[str] = None,
+        parser: ClassVar[Parser] = Alto
 ) -> Parser:
     """ Check a file for missing chars in the translation table
 
@@ -437,9 +485,9 @@ def get_character_name(character: str, raise_exception: bool = True) -> str:
 
 
 def get_files_unknown_and_known(
-    instance: Parser,
-    translator: Translator,
-    normalization: Optional[str] = None
+        instance: Parser,
+        translator: Translator,
+        normalization: Optional[str] = None
 ) -> Tuple[Set[str], Set[str]]:
     """ Retrieves unknown and known characters from an instance
 
@@ -464,13 +512,13 @@ def get_files_unknown_and_known(
 
 
 def update_table(
-    files: Iterable[str],
-    table_file: Optional[str] = None,
-    mode: str = "add",
-    parser: ClassVar[Parser] = Alto,
-    echo: bool = False,
-    normalization: Optional[str] = None,
-    dest: Optional[str] = None
+        files: Iterable[str],
+        table_file: Optional[str] = None,
+        mode: str = "add",
+        parser: ClassVar[Parser] = Alto,
+        echo: bool = False,
+        normalization: Optional[str] = None,
+        dest: Optional[str] = None
 ):
     prior: Dict[str, Dict[str, str]] = {}
     translator = Translator([])
@@ -579,7 +627,7 @@ def update_table(
     with open(out_file, "w") as out_file:
         w = csv.DictWriter(
             out_file,
-            fieldnames=["char", "name", "replacement", "codepoint", "mufidecode"]+sorted(list(previous_field_names))
+            fieldnames=["char", "name", "replacement", "codepoint", "mufidecode"] + sorted(list(previous_field_names))
         )
         w.writeheader()
         w.writerows(content)

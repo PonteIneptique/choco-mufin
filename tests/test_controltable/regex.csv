@@ -1,4 +1,4 @@
 char,name,replacement,regex
 ẏ,LATIN SMALL LETTER Y WITH DIAERESIS,y,
-[a-zA-Z],All letters,\1,true
+[a-zA-Z],All letters,\g<0>,true
 ◌ͥ,COMBINING US ABOVE,◌ͨ,
