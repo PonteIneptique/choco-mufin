@@ -1,4 +1,4 @@
-from chocomufin.funcs import Replacement, Translator
+from chocomufin.classes import Replacement, Translator
 import unicodedata
 
 

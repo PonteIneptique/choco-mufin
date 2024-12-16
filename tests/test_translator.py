@@ -1,7 +1,8 @@
 import os.path
 
 from unittest import TestCase
-from chocomufin.funcs import Translator, convert_file, _test_helper, get_files_unknown_and_known, Replacement
+from chocomufin.functions import convert_file, _test_helper, get_files_unknown_and_known
+from chocomufin.classes import Replacement, Translator
 from chocomufin.parsers import Alto
 
 

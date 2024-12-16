@@ -9,8 +9,8 @@ import lxml.etree as ET
 import click
 import tqdm
 
-from chocomufin.funcs import Translator, check_file, get_hex, convert_file, update_table, get_character_name,\
-    normalize
+from chocomufin.functions import check_file, convert_file, update_table, get_character_name
+from chocomufin.classes import normalize, get_hex, Translator
 from chocomufin.parsers import Parser, Alto, PlainText
 logging.getLogger().setLevel(logging.INFO)
 
