@@ -295,40 +295,44 @@ class Translator:
         """ Checks a line to see all characters or input that are known
 
         Simple cases
-        >>> Translator([Replacement("é", "ẽ")]).get_known_chars("ábé") == {"é"}
+        >>> Translator([Replacement("é", "ẽ")]).get_known_chars("ábé") == {Replacement("é", "ẽ")}
         True
 
         Input dictionary is not normalized a Translator initialization but it is at parsing
            resulting in 0 known chars
         >>> Translator([Replacement("é", "ẽ")]).get_known_chars("ábé", normalization="NFD") == set()
         True
-        >>> Translator([Replacement('́', '̃')]).get_known_chars("ábé", normalization="NFD") == {'́'}
+        >>> Translator([Replacement('́', '̃')]).get_known_chars("ábé", normalization="NFD") == {Replacement('́', '̃')}
         True
-        >>> Translator([Replacement('é', 'ẽ')]).get_known_chars("ábé", normalization="NFD") == {'é'}
+        >>> Translator([Replacement('é', 'ẽ')]).get_known_chars("ábé", normalization="NFD") == {Replacement('é', 'ẽ')}
         True
 
         "Advanced" cases
         >>> Translator(
         ...     [Replacement('bé', 'dé'), Replacement('é', 'ẽ')]
-        ... ).get_known_chars("ábé", normalization="NFD") == {'bé', 'é'}
+        ... ).get_known_chars("ábé", normalization="NFD") == {Replacement('bé', 'dé'), Replacement('é', 'ẽ')}
         True
         >>> Translator([
         ...     Replacement('f', 'f'), Replacement("a", "a"), Replacement("b", "b"), Replacement('́', '́')
-        ... ]).get_known_chars("ábé", normalization="NFD") == {"a", "b", '́'}
+        ... ]).get_known_chars("ábé", normalization="NFD") == {
+        ...     Replacement("a", "a"), Replacement("b", "b"), Replacement('́', '́')}
         True
         >>> Translator([
         ...     Replacement('e', 'e'), Replacement("a", "a"), Replacement("b", "b"), Replacement('́', '́')
-        ... ]).get_known_chars("ábé", normalization="NFD") == {"a", "b", "e", '́'}
+        ... ]).get_known_chars("ábé", normalization="NFD") == {
+        ...     Replacement('e', 'e'), Replacement("a", "a"), Replacement("b", "b"), Replacement('́', '́')}
         True
         >>> Translator(
         ...     [Replacement('e', 'e'), Replacement("[a-z]", "[a-z]", regex=True)]
-        ... ).get_known_chars("abcdef", normalization="NFD") == {"[a-z]", "e"}
+        ... ).get_known_chars("abcdef", normalization="NFD") == {
+        ...     Replacement('e', 'e'), Replacement("[a-z]", "[a-z]", regex=True)}
         True
         >>> Translator([Replacement('[a-z]', 'e', regex=True), Replacement("1", "1")]).get_known_chars(
-        ...     "abcdef1", normalization="NFD") == {"[a-z]", "1"}
+        ...     "abcdef1", normalization="NFD") == {
+        ...     Replacement('[a-z]', 'e', regex=True), Replacement("1", "1")}
         True
         >>> Translator([Replacement('[a-z]', 'e'), Replacement("1", "1")]).get_known_chars(
-        ...     "abcdef1", normalization="NFD", ignore={"[a-z]"}) == {"1"}
+        ...     "abcdef1", normalization="NFD", ignore={"[a-z]"}) == {Replacement("1", "1")}
         True
         """
         if not ignore:
