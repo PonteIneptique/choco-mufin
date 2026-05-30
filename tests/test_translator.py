@@ -90,7 +90,7 @@ class TestRegressionTranslator(TestCase):
             {
                 Replacement(char='ͥ', replacement='ͨ', _allow=False, regex=False,
                             record={'char': '◌ͥ', 'name': 'COMBINING US ABOVE', 'replacement': '◌ͨ', 'regex': ''}),
-                Replacement(char='[a-zA-Z]', replacement='\g<0>', _allow=False, regex=True,
+                Replacement(char='[a-zA-Z]', replacement=r'\g<0>', _allow=False, regex=True,
                             record={'char': '[a-zA-Z]', 'name': 'All letters', 'replacement': '\\g<0>',
                                     'regex': 'true'})
             },

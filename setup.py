@@ -19,7 +19,7 @@ DESCRIPTION = '[CHaracter Ocr COordination for MUFI iN texts] ' \
               'A simple script to maintain a reasonable training set of HTR/OCR characters'
 URL = 'https://github.com/ponteineptique/choco-mufin'
 AUTHOR = 'Thibault Clerice'
-REQUIRES_PYTHON = '>=3.6.0'
+REQUIRES_PYTHON = '>=3.12.0'
 VERSION = "1.0.1"
 
 # What packages are required for this module to be executed?
@@ -120,7 +120,7 @@ setup(
         'License :: OSI Approved :: MIT License',
         'Programming Language :: Python',
         'Programming Language :: Python :: 3',
-        'Programming Language :: Python :: 3.7',
+        'Programming Language :: Python :: 3.12',
         'Programming Language :: Python :: Implementation :: CPython',
         'Programming Language :: Python :: Implementation :: PyPy',
         'Topic :: Text Processing :: Linguistic'

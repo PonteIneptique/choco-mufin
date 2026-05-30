@@ -125,7 +125,7 @@ class Replacement:
         return re.sub(self._escape(self.char), '', string)
 
     def replaces(self, string: str) -> str:
-        """
+        r"""
 
         >>> Replacement("a", "b").replaces("abba")
         'bbbb'
